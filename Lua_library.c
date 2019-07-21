@@ -20,6 +20,9 @@
 #include "openssl/evp.h"
 #include "openssl/err.h"
 
+//Our own libraries
+#include "linktype.h"
+
 //Block types
 #define SHB_TYPE 0x0A0D0D0A
 #define SHB_BOM 0x1A2B3C4D
@@ -110,7 +113,7 @@ static int create_filesystem(lua_State *L) {
 static int add_interface(lua_State *L) {
 	int status = -1;
 	const char *path;
-	int linktype;
+	const char* linktype;
 	IDB idb = { IDB_TYPE, IDB_MIN_LENGTH, 0, 0, 0 };
 	FILE *file;
 	uint32_t shb_check;
@@ -120,9 +123,10 @@ static int add_interface(lua_State *L) {
 	//Get the file path
 	path = luaL_checkstring(L, 1);
 	//Get the link type
-	linktype = luaL_checknumber(L, 2);
-	//Set the link type
-	idb.link_type = linktype;
+	linktype = luaL_checkstring(L, 2);
+
+	//Set the link type from the string using our library
+	idb.link_type = headerLinkTypeValue(linktype);
 
 	//Try to open the file
 	file = fopen(path, "r+");
@@ -234,7 +238,7 @@ static int write_packet(lua_State *L) {
 	//Get the current time. timespec_get is C11 and will get time in seconds and nanoseconds, rounded to the system clock resolution. Best option. Getting good time in C isn't easy
 	timespec_get(&system_time, TIME_UTC);
 	//Now we need time in microseconds. For that we multiply time in seconds x 10^6 and add nanoseconds divided by 10^3
-	time_micros=1000000L * system_time.tv_sec + system_time.tv_nsec / 1000; //I hope this works
+	time_micros = 1000000L * system_time.tv_sec + system_time.tv_nsec / 1000; //I hope this works
 	epb.timestamp_low = time_micros & 0x00000000FFFFFFFF;
 	epb.timestamp_high = time_micros >> 32;
 
@@ -326,17 +330,41 @@ static int black_marker(lua_State *L) {
 	return 1;
 }
 
-//Calculates a correct ipv4 checksum from an IPv4 header
+//Helper function to calculate the internet checksum. This is done in the same way for TCP, UDP and IPv4 checksums
+//Calculating the checksum is different for different cases so separate functions will handle that. Here we'll only have the central logic
+uint16_t calculate_internet_checksum(const char *data, int length) {
+	int i;
+	uint16_t result = 0;
+	uint16_t tmp_val = 0;
+	uint32_t tmp_res = 0;
+
+	for (i = 0; i < length; i += 2) {
+		memcpy(&tmp_val, data + i, 2);
+		tmp_res += tmp_val;
+	}
+	//The checksum is calculated by adding 16-bit words together and adding any overflow into the least significant bit
+	//When working with 32-bits, this overflow can simply be left alone and then later added back up
+	//That's faster than checking every time
+	//The 17th bit would have the value 65536 so we simply check if we're greater or equal to that value
+	//If we are, we subtract 65535, which is equivalent to unsetting bit 17, then adding 1
+	while(tmp_res>=65536)
+		tmp_res-=65535;
+
+	result +=tmp_res;
+	result = ~result;
+
+	return result;
+}
+
+//Calculates a correct ipv4 checksum from an IPv4 header and returns the checksum and the correct header
 //Usage in Lua: calculate_ipv4_checksum(IPv4_header)
 static int calculate_ipv4_checksum(lua_State *L) {
 	const char *header;
+	char *data;
 	uint8_t length;
 	char checksum[2];
 	int checksum_offset = 10; //This is where in the header we'll find the checksum.
-	uint32_t tmp_res = 0;
-	uint16_t tmp_val = 0;
 	uint16_t result = 0;
-	int i;
 	//Get the header
 	header = luaL_checkstring(L, 1);
 	//Version and Internet Header Length are in the 1st byte. Length is the lower 4 bits, so the mask 0x0F gets rid of the top 4 bits
@@ -344,32 +372,102 @@ static int calculate_ipv4_checksum(lua_State *L) {
 	//The Internet Header Length is a Length in 32-bit words, we need bytes so we're multiplying by 4
 	length *= 4;
 
-	for (i = 0; i < length; i += 2) {
-		//We skip adding the checksum bytes because the checksum is considered zero for this purpose
-		if (i == checksum_offset)
-			continue;
-		memcpy(&tmp_val, header + i, 2);
-		tmp_res += tmp_val;
-		//The checksum is calculated by adding 16-bit words together and adding any overflow into the least significant bit
-		//Here we do this by checking if the value exceeds or is equal to the value of 2^16, which would mean bit 17 is set
-		//If it is, we subtract 65536 from the 32-bit integer, which is equivalent to unsetting bit 17 and then adding 1
-		//This can still result in bit 17 being set, so it needs to be done twice to make sure, but not more than that.
-		if (tmp_res >= 65536)
-			tmp_res -= 65535;
-		if (tmp_res >= 65536)
-			tmp_res -= 65535;
-	}
-	//When we're done adding all the 16-bit words together, we need to produce their complement.
-	//We add the value of tmp to the result which is appropriately sized, then invert it
-	result += tmp_res;
-	result = ~result;
+	//Allocate memory for our header since we receive it as a constant char and need to change the checksum to be 0
+	data = (char *) malloc(length);
+
+	//Copy our entire header over
+	memcpy(data, header, length);
+
+	//Zero-out the checksum
+	memset(data + checksum_offset, 0x00, 2);
+
+	//Calculate the result
+	result = calculate_internet_checksum(data, length);
+
+	//Set our checksum into the actual packet
+	memcpy(data+checksum_offset,&result,2);
 
 	//Copy the result into our checksum string
 	memcpy(checksum, &result, 2);
 
+	//Push our checksum and the data to the stack
 	lua_pushlstring(L, checksum, 2);
+	lua_pushlstring(L, data, length);
 
-	return 1;
+	//Free memory
+	free(data);
+
+	return 2;
+}
+
+//Calculates a correct TCP checksum from an IPv4 header with a TCP payload
+//Usage in Lua: calculate_tcp_checksum(IPv4 packet)
+static int calculate_tcp_checksum_ipv4(lua_State *L) {
+	uint8_t ipv4_header_length;
+	const char *packet;
+	char *pseudo_header;
+	char *tcp_frame;
+	//Offsets from the start of the header for various IPv4 fields.
+	int source_address_offset = 12;
+	int destination_address_offset = 16;
+	int total_length_offset = 2;
+	int tcp_checksum_offset=16;
+	uint8_t protocol = 6; //Protocol=6 for TCP
+	uint16_t total_length;
+	uint16_t tcp_length = 0; //This will be equal to IPv4 total length minus IHL*4
+	uint16_t tcp_length_reversed=0; //This will be the reversed-byte-order tcp_length we write into the pseudo-header which is in network byte order
+	int pseudo_header_length=0;
+	char checksum[2];
+	uint16_t result = 0;
+
+	//Get the packet
+	packet = luaL_checkstring(L, 1);
+
+	//Get the header length in bytes. IHL is the lower 4 bits of the byte and is in 32-bit words so we mask, then multiply by 4
+	ipv4_header_length = *packet & 0x0F;
+	ipv4_header_length *= 4;
+
+	//Due to data being in network byte order we need to move the bytes around to get a proper total length
+	memcpy(&total_length, packet + total_length_offset, 1);
+	total_length=total_length>>8;
+	memcpy(&total_length, packet + total_length_offset+1,1);
+	tcp_length = total_length - ipv4_header_length; //We can get the TCP header length by now subtracting the ipv4 header length from the total length
+	tcp_length_reversed = tcp_length>>8; //We generate the reversed length here for the purpose of writing it into the pseudo_header
+	tcp_length_reversed += tcp_length<<8;
+
+	//Allocate bytes for the IPv4 pseudo-header (96) + TCP header and data (tcp_length) + padding if needed to contain a multiple of 16-bit fields
+	pseudo_header_length=12+tcp_length+(12 + tcp_length) % 2;
+	pseudo_header = (char *) malloc(pseudo_header_length);
+	memset(pseudo_header, 0x00, pseudo_header_length); //Set it all to 0 so we don't have to worry later
+
+	//Create the TCP frame
+	tcp_frame = (char *) malloc(tcp_length);
+	//Copy the actual TCP frame
+	memcpy(tcp_frame, packet + ipv4_header_length, tcp_length);
+
+	//Copy the appropriate values into the pseudo_header
+	memcpy(pseudo_header, packet + source_address_offset, 4); //Source address
+	memcpy(pseudo_header + 4, packet + destination_address_offset, 4); //Destination address
+	memcpy(pseudo_header + 9, &protocol, 1); //Protocol. Byte before is all zeros
+	memcpy(pseudo_header + 10, &tcp_length_reversed, 2); //TCP length, but byte-order needs to be reversed from little-endian machine to big-endian network order
+	memcpy(pseudo_header + 12, packet + ipv4_header_length, tcp_length); //Rest of the TCP packet
+	memset(pseudo_header + 28, 0x00, 2); //Erase the existing TCP checksum
+	//Calculate the checksum
+	result = calculate_internet_checksum(pseudo_header, pseudo_header_length);
+
+	//Copy the result into our checksum string
+	memcpy(checksum, &result, 2);
+	//Copy the checksum into the TCP frame
+	memcpy(tcp_frame+tcp_checksum_offset,checksum,2);
+
+	lua_pushlstring(L, checksum, 2); //Push the checksum onto the Lua stack
+	lua_pushlstring(L, tcp_frame, tcp_length); //Push the frame onto the Lua stack
+
+	//Free memory
+	free(pseudo_header);
+	free(tcp_frame);
+
+	return 2;
 }
 
 //Little helper for cleanup calls for libcrypto
@@ -392,7 +490,7 @@ static int HMAC(lua_State *L) {
 
 	//Get the arguments from Lua
 	bytes = luaL_checkstring(L, 1);
-	length=luaL_checknumber(L,2);
+	length = luaL_checknumber(L, 2);
 	salt = luaL_checkstring(L, 3);
 	iterations = luaL_checknumber(L, 4);
 
@@ -412,9 +510,8 @@ static int HMAC(lua_State *L) {
 	}
 	//PKCS5_PBKDF2_HMAC really wants unsigned char pointers instead of just char pointers. Honestly there is no difference here for us because we're just using them as bytes
 	//Just casting these to unsigned char * to satisfy the compiler should have 0 consequences on the result
-	if (PKCS5_PBKDF2_HMAC(bytes, length, (unsigned char *) salt,
-			strlen(salt), iterations, EVP_sha256(), length,
-			(unsigned char *) result) <= 0) {
+	if (PKCS5_PBKDF2_HMAC(bytes, length, (unsigned char *) salt, strlen(salt),
+			iterations, EVP_sha256(), length, (unsigned char *) result) <= 0) {
 		crypto_cleanup();
 		lua_pushinteger(L, status);
 		lua_pushlstring(L, '\0', 1);
@@ -422,7 +519,7 @@ static int HMAC(lua_State *L) {
 		return 2;
 	}
 	crypto_cleanup();
-	status=1;
+	status = 1;
 	//Push the status and result
 	lua_pushinteger(L, status);
 	lua_pushlstring(L, result, length);
@@ -430,14 +527,13 @@ static int HMAC(lua_State *L) {
 	return 2;
 }
 
-
-
 //To register library with lua
 static const struct luaL_Reg library[] = { { "create_filesystem",
 		create_filesystem }, { "add_interface", add_interface }, {
 		"write_packet", write_packet }, { "black_marker", black_marker }, {
-		"calculate_ipv4_checksum", calculate_ipv4_checksum }, { "HMAC", HMAC },
-		{ NULL, NULL } };
+		"calculate_ipv4_checksum", calculate_ipv4_checksum }, {
+		"calculate_tcp_checksum_ipv4", calculate_tcp_checksum_ipv4 }, { "HMAC",
+		HMAC }, { NULL, NULL } };
 
 //Function to register library
 int luaopen_libMasterarbeit(lua_State *L) {
