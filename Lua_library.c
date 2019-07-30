@@ -347,10 +347,10 @@ uint16_t calculate_internet_checksum(const char *data, int length) {
 	//That's faster than checking every time
 	//The 17th bit would have the value 65536 so we simply check if we're greater or equal to that value
 	//If we are, we subtract 65535, which is equivalent to unsetting bit 17, then adding 1
-	while(tmp_res>=65536)
-		tmp_res-=65535;
+	while (tmp_res >= 65536)
+		tmp_res -= 65535;
 
-	result +=tmp_res;
+	result += tmp_res;
 	result = ~result;
 
 	return result;
@@ -385,7 +385,7 @@ static int calculate_ipv4_checksum(lua_State *L) {
 	result = calculate_internet_checksum(data, length);
 
 	//Set our checksum into the actual packet
-	memcpy(data+checksum_offset,&result,2);
+	memcpy(data + checksum_offset, &result, 2);
 
 	//Copy the result into our checksum string
 	memcpy(checksum, &result, 2);
@@ -400,72 +400,247 @@ static int calculate_ipv4_checksum(lua_State *L) {
 	return 2;
 }
 
-//Calculates a correct TCP checksum from an IPv4 header with a TCP payload
-//Usage in Lua: calculate_tcp_checksum(IPv4 packet)
-static int calculate_tcp_checksum_ipv4(lua_State *L) {
-	uint8_t ipv4_header_length;
+//Calculates a correct TCP/UDP checksum for a TCP/UDP datagram in an IPv4/IPv6 packet
+//Usage in Lua: calculate_tcp_udp_checksum(packet)
+static int calculate_tcp_udp_checksum(lua_State *L) {
+
 	const char *packet;
+
+	uint8_t protocol_version;
+
+	uint8_t ipv4_header_length; //With IPv4 things are simple. Header length is the length of the IPv4 header
+
+	uint8_t ipv6_next_header; //With IPv6 we don't have header length, but we have next header so we can parse until we find the payload
+
+	//This plays a dual role. For IPv4 a total length including header and payload is present.
+	//For IPv6 the payload length is the length excluding the IPv6 header, but including extension headers
+	uint16_t length;
+
+	//Pointers for the pseudo_header and the whole datagram (with correct checksum)
 	char *pseudo_header;
-	char *tcp_frame;
+	char *datagram;
+
 	//Offsets from the start of the header for various IPv4 fields.
-	int source_address_offset = 12;
-	int destination_address_offset = 16;
-	int total_length_offset = 2;
-	int tcp_checksum_offset=16;
-	uint8_t protocol = 6; //Protocol=6 for TCP
-	uint16_t total_length;
-	uint16_t tcp_length = 0; //This will be equal to IPv4 total length minus IHL*4
-	uint16_t tcp_length_reversed=0; //This will be the reversed-byte-order tcp_length we write into the pseudo-header which is in network byte order
-	int pseudo_header_length=0;
+	const int ipv4_total_length_offset = 2;
+	const int ipv4_protocol_offset = 9;
+	const int ipv4_source_address_offset = 12;
+	const int ipv4_destination_address_offset = 16;
+
+	//Offsets from the start of the header for various IPv6 fields.
+	const int ipv6_source_address_offset = 8;
+	const int ipv6_destination_address_offset = 24;
+	const int ipv6_payload_length_offset = 4;
+	const int ipv6_next_header_offset = 6;
+
+	//Offset within the IPv6 payload that we're currently parsing at
+	int ipv6_payload_parsing_offset = 40; //This is initially set to 40 as the fixed part of an IPv6 header is 40 bytes
+	//Length of extension header we intend to skip
+	int ipv6_extension_header_length = 0;
+	//Remaining length of the payload after the options we've parsed
+	uint16_t ipv6_remaining_payload_length = 0;
+
+	//Offset of the checksum from the start of the TCP and UDP datagrams
+	const int tcp_checksum_offset = 16;
+	const int udp_checksum_offset = 6;
+
+	const uint8_t protocol_tcp = 6; //Protocol=6 for TCP
+	const uint8_t protocol_udp = 17; //Protocol=17 for UDP
+	uint8_t protocol = 0; //Generic protocol to set
+
+	uint16_t datagram_length = 0; //This will be equal to IPv4 total length minus IHL*4
+	uint16_t datagram_length_reversed = 0; //This will be the reversed-byte-order tcp_length we write into the pseudo-header which is in network byte order
+	int pseudo_header_length = 0;
 	char checksum[2];
 	uint16_t result = 0;
 
 	//Get the packet
 	packet = luaL_checkstring(L, 1);
 
-	//Get the header length in bytes. IHL is the lower 4 bits of the byte and is in 32-bit words so we mask, then multiply by 4
-	ipv4_header_length = *packet & 0x0F;
-	ipv4_header_length *= 4;
+	//Figure out if we're IPv4 or IPv6
+	protocol_version = *packet & 0xF0; //Version is the 1st 4 bits in both
+	protocol_version = protocol_version >> 4;
 
-	//Due to data being in network byte order we need to move the bytes around to get a proper total length
-	memcpy(&total_length, packet + total_length_offset, 1);
-	total_length=total_length>>8;
-	memcpy(&total_length, packet + total_length_offset+1,1);
-	tcp_length = total_length - ipv4_header_length; //We can get the TCP header length by now subtracting the ipv4 header length from the total length
-	tcp_length_reversed = tcp_length>>8; //We generate the reversed length here for the purpose of writing it into the pseudo_header
-	tcp_length_reversed += tcp_length<<8;
+	if (protocol_version == 4) {
 
-	//Allocate bytes for the IPv4 pseudo-header (96) + TCP header and data (tcp_length) + padding if needed to contain a multiple of 16-bit fields
-	pseudo_header_length=12+tcp_length+(12 + tcp_length) % 2;
-	pseudo_header = (char *) malloc(pseudo_header_length);
-	memset(pseudo_header, 0x00, pseudo_header_length); //Set it all to 0 so we don't have to worry later
+		//We're dealing with IPv4
 
-	//Create the TCP frame
-	tcp_frame = (char *) malloc(tcp_length);
-	//Copy the actual TCP frame
-	memcpy(tcp_frame, packet + ipv4_header_length, tcp_length);
+		//Get the header length in bytes. IHL is the lower 4 bits of the byte and is in 32-bit words so we mask, then multiply by 4
+		ipv4_header_length = *packet & 0x0F;
+		ipv4_header_length *= 4;
 
-	//Copy the appropriate values into the pseudo_header
-	memcpy(pseudo_header, packet + source_address_offset, 4); //Source address
-	memcpy(pseudo_header + 4, packet + destination_address_offset, 4); //Destination address
-	memcpy(pseudo_header + 9, &protocol, 1); //Protocol. Byte before is all zeros
-	memcpy(pseudo_header + 10, &tcp_length_reversed, 2); //TCP length, but byte-order needs to be reversed from little-endian machine to big-endian network order
-	memcpy(pseudo_header + 12, packet + ipv4_header_length, tcp_length); //Rest of the TCP packet
-	memset(pseudo_header + 28, 0x00, 2); //Erase the existing TCP checksum
-	//Calculate the checksum
-	result = calculate_internet_checksum(pseudo_header, pseudo_header_length);
+		//Get the protocol from the IPv4 header
+		memcpy(&protocol, packet + ipv4_protocol_offset, 1);
 
-	//Copy the result into our checksum string
-	memcpy(checksum, &result, 2);
-	//Copy the checksum into the TCP frame
-	memcpy(tcp_frame+tcp_checksum_offset,checksum,2);
+		//Due to data being in network byte order we need to move the bytes around to get a proper total length
+		memcpy(&length, packet + ipv4_total_length_offset, 1);
+		length = length >> 8;
+		memcpy(&length, packet + ipv4_total_length_offset + 1, 1);
+		datagram_length = length - ipv4_header_length; //We can get the TCP header length by now subtracting the ipv4 header length from the total length
+		datagram_length_reversed = datagram_length >> 8; //We generate the reversed length here for the purpose of writing it into the pseudo_header
+		datagram_length_reversed += datagram_length << 8;
+
+		//Allocate bytes for the IPv4 pseudo-header (12) + TCP header and data (tcp_length) + padding if needed to contain a multiple of 16-bit fields
+		pseudo_header_length = 12 + datagram_length
+				+ (12 + datagram_length) % 2;
+		pseudo_header = (char *) malloc(pseudo_header_length);
+		memset(pseudo_header, 0x00, pseudo_header_length); //Set it all to 0 so we don't have to worry later
+
+		//Allocate bytes for the datagram
+		datagram = (char *) malloc(datagram_length);
+		//Copy the actual datagram
+		memcpy(datagram, packet + ipv4_header_length, datagram_length);
+
+		//Copy the appropriate values into the pseudo_header
+		memcpy(pseudo_header, packet + ipv4_source_address_offset, 4); //Source address
+		memcpy(pseudo_header + 4, packet + ipv4_destination_address_offset, 4); //Destination address
+		memcpy(pseudo_header + 9, &protocol, 1); //Protocol. Byte before is all zeros
+		memcpy(pseudo_header + 10, &datagram_length_reversed, 2); //datagram length, but byte-order needs to be reversed from little-endian machine to big-endian network order
+		memcpy(pseudo_header + 12, packet + ipv4_header_length,
+				datagram_length); //Rest of the TCP packet
+		//We need to erase the checksum in different places depending if it's UDP or TCP
+		if (protocol == protocol_tcp)
+			memset(pseudo_header + 28, 0x00, 2); //Erase the existing TCP checksum
+		else if (protocol == protocol_udp)
+			memset(pseudo_header + 18, 0x00, 2); //Erase the existing UDP checksum
+
+		//Calculate the checksum
+		result = calculate_internet_checksum(pseudo_header,
+				pseudo_header_length);
+
+		//Copy the result into our checksum string
+		memcpy(checksum, &result, 2);
+		if (protocol == protocol_tcp)
+			memcpy(datagram + tcp_checksum_offset, checksum, 2); //Copy the checksum into the TCP frame
+		else if (protocol == protocol_udp)
+			memcpy(datagram + udp_checksum_offset, checksum, 2); //Copy the checksum into the UDP frame
+
+	} else if (protocol_version == 6) {
+
+		//We're dealing with IPv6
+
+		//Due to data being in network byte order we need to move the bytes around to get a proper payload length
+		memcpy(&length, packet + ipv6_payload_length_offset, 1); //IPv6 payload length. This includes extension headers that must be parsed
+		length = length >> 8;
+		memcpy(&length, packet + ipv6_payload_length_offset + 1, 1);
+		//Get the next header
+		memcpy(&ipv6_next_header, packet + ipv6_next_header_offset, 1);
+
+		ipv6_remaining_payload_length = length; //The remaining payload length we'll use when skipping extension headers, if needed
+
+		//While the next header isn't TCP or UDP we need to iterate through extension headers
+		//We don't recognize or care for the type of extension header
+		//But this does mean we have to introduce checks so we don't end up going outside of our memory space
+		//Misunderstanding data as a TCP or UDP next header and returning a bogus result isn't that much of a concern
+		//If a user passes an IPv6 packet without a payload the result would be useless anyway
+
+		while (ipv6_next_header != protocol_tcp
+				&& ipv6_next_header != protocol_udp) {
+			//If we're neither TCP nor UDP; we need to skip ahead
+
+			//Read the next header
+			memcpy(&ipv6_next_header, packet + ipv6_payload_parsing_offset, 1);
+			//Read the length of the extension header
+			memcpy(&ipv6_extension_header_length,
+					packet + ipv6_payload_parsing_offset + 1, 1); //This length is the length without the next header field
+
+			if (ipv6_remaining_payload_length
+					<= (ipv6_extension_header_length + 1)) {
+				//If there is less or equal bytes left than what we perceive to be the extension header length, we can end our parsing. We haven't found a TCP or UDP header
+				ipv6_next_header = 0;
+				break;
+			} else {
+				//Subtract the length of the extension header from the remaining payload length. Add 1 for the next header field that isn't included in the length of the header
+				ipv6_remaining_payload_length -= (ipv6_extension_header_length
+						+ 1);
+			}
+			if (ipv6_remaining_payload_length < 8) {
+				//Less than 8 bytes is too small even for UDP. We can give up here. Setting the next header to 0 makes sure the conditions below aren't satisfied for tcp or udp
+				ipv6_next_header = 0;
+				break;
+			}
+
+			//Assuming we haven't had a reason to break before, we continue our loop by skipping forward to the next header
+			ipv6_payload_parsing_offset += ipv6_extension_header_length + 1; //Again we must add 1 to the skip for the next header field that isn't part of the header length
+		}
+
+		if (ipv6_next_header == 0) {
+
+			//Set the result to something obviously and verifyably wrong like in case we receive a non-IP header
+			//The 0 here is the one we set manually above to make sure we trigger this
+			checksum[0] = 0;
+			checksum[1] = '\0';
+			datagram_length = 1;
+			pseudo_header = (char*) malloc(1);
+			datagram = (char*) malloc(1);
+			*datagram = '\0';
+		} else {
+
+			datagram_length = ipv6_remaining_payload_length;
+			datagram_length_reversed = datagram_length >> 8; //We generate the reversed length here for the purpose of writing it into the pseudo_header
+			datagram_length_reversed += datagram_length << 8;
+
+			pseudo_header_length = 40 + ipv6_remaining_payload_length
+					+ (40 + ipv6_remaining_payload_length) % 2; //Length of the pseudo_header
+			pseudo_header = (char *) malloc(pseudo_header_length);
+			memset(pseudo_header, 0x00, pseudo_header_length); //Set it all to 0 so we don't have to worry later
+
+			memcpy(pseudo_header, packet + ipv6_source_address_offset, 16); //Copy source address
+			memcpy(pseudo_header + 16, packet + ipv6_destination_address_offset,
+					16); //Copy destination address
+			//Lenght is a 4-byte field in the pseudo-header, probably to accomodate jumbo packets. We're not doing those and our length is 2 bytes
+			//Since wire in network byte order, the 1st two bytes are our reversed datagram length, the 2nd two are zeroes.
+			memcpy(pseudo_header+32, &datagram_length_reversed, 2);
+			memset(pseudo_header + 34, 0x00, 2); //Zero the higher bytes of the field
+			memset(pseudo_header + 36, 0x00, 3); //Write the three bytes of zeroes that follow
+			memcpy(pseudo_header + 39, &ipv6_next_header, 1); //Write the next header
+			memcpy(pseudo_header + 40, packet + ipv6_payload_parsing_offset,
+					ipv6_remaining_payload_length); //Copy the remaining payload
+			//Zero-out the appropriate spot for the checksum
+			if (ipv6_next_header == protocol_tcp)
+				memset(pseudo_header + 56, 0x00, 2); //Erase the existing TCP checksum
+			else if (ipv6_next_header == protocol_udp)
+				memset(pseudo_header + 46, 0x00, 2); //Erase the existing UDP checksum
+
+			for(result=0;result<pseudo_header_length;result++)
+			{
+				printf("%x\n", *(pseudo_header+result));
+			}
+
+			//Create the datagram
+			datagram = (char *) malloc(datagram_length); //Create the datagram
+			memcpy(datagram, packet + ipv6_payload_parsing_offset,
+					ipv6_remaining_payload_length); //Copy the datagram
+
+			//Calculate the checksum
+			result = calculate_internet_checksum(pseudo_header,
+					pseudo_header_length);
+
+			printf("Checksum: %x\n", result);
+
+			//Copy the result into our checksum string
+			memcpy(checksum, &result, 2);
+			if (ipv6_next_header == protocol_tcp)
+				memcpy(datagram + tcp_checksum_offset, checksum, 2); //Copy the checksum into the TCP frame
+			else if (ipv6_next_header == protocol_udp)
+				memcpy(datagram + udp_checksum_offset, checksum, 2); //Copy the checksum into the UDP frame
+		}
+
+	} else {
+		//This should handle if we receive a non-IP header
+		checksum[0] = 0;
+		checksum[1] = '\0';
+		datagram_length = 1;
+		pseudo_header = (char*) malloc(1);
+		datagram = (char*) malloc(1);
+		*datagram = '\0';
+	}
 
 	lua_pushlstring(L, checksum, 2); //Push the checksum onto the Lua stack
-	lua_pushlstring(L, tcp_frame, tcp_length); //Push the frame onto the Lua stack
+	lua_pushlstring(L, datagram, datagram_length); //Push the datagram onto the Lua stack
 
 	//Free memory
 	free(pseudo_header);
-	free(tcp_frame);
+	free(datagram);
 
 	return 2;
 }
@@ -532,7 +707,7 @@ static const struct luaL_Reg library[] = { { "create_filesystem",
 		create_filesystem }, { "add_interface", add_interface }, {
 		"write_packet", write_packet }, { "black_marker", black_marker }, {
 		"calculate_ipv4_checksum", calculate_ipv4_checksum }, {
-		"calculate_tcp_checksum_ipv4", calculate_tcp_checksum_ipv4 }, { "HMAC",
+		"calculate_tcp_udp_checksum", calculate_tcp_udp_checksum }, { "HMAC",
 		HMAC }, { NULL, NULL } };
 
 //Function to register library
