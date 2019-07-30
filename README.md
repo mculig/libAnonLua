@@ -45,11 +45,11 @@ Calculates the correct checksum for the provided (whole) ipv4 header. The header
 
 ---
 
-**calculate_tcp_checksum_ipv4(string IP_packet)**
+**calculate_tcp_udp_checksum(string IP_packet)**
 
-Calculates the correct TCP checksum based on the provided (whole) IPv4 packet. The entirety of the packet, including payload (TCP header and TCP data) is necessary to calculate this checksum. 
+Calculates the correct TCP or UDP checksum based on the provided (whole) IPv4 or IPv6 packet. The entirety of the packet, including payload (TCP/UDP header and data) is necessary to calculate this checksum. 
 
-**Returns:** Checksum (2-byte raw string), Provided TCP header with correct checksum (raw string) + payload (whole TCP segment)
+**Returns:** Checksum (2-byte raw string), Provided TCP/UDP header with correct checksum (raw string) + payload (whole TCP/UDP segment)
 
 ---
 
