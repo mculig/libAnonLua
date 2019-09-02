@@ -1,8 +1,8 @@
 /*
- * Lua_library.c
+ * libAnonLua.c
  *
  *  Created on: Jul 7, 2019
- *      Author: mislav
+ *      Author: Mislav Culig
  */
 
 #include "lua5.2/lua.h"
@@ -113,7 +113,6 @@ static int create_filesystem(lua_State *L) {
 static int add_interface(lua_State *L) {
 	int status = -1;
 	const char *path;
-	const char* linktype;
 	IDB idb = { IDB_TYPE, IDB_MIN_LENGTH, 0, 0, 0 };
 	FILE *file;
 	uint32_t shb_check;
@@ -123,10 +122,7 @@ static int add_interface(lua_State *L) {
 	//Get the file path
 	path = luaL_checkstring(L, 1);
 	//Get the link type
-	linktype = luaL_checkstring(L, 2);
-
-	//Set the link type from the string using our library
-	idb.link_type = headerLinkTypeValue(linktype);
+	idb.link_type = luaL_checknumber(L, 2);
 
 	//Try to open the file
 	file = fopen(path, "r+");
@@ -711,7 +707,8 @@ static const struct luaL_Reg library[] = { { "create_filesystem",
 		HMAC }, { NULL, NULL } };
 
 //Function to register library
-int luaopen_libMasterarbeit(lua_State *L) {
+int luaopen_libAnonLua(lua_State *L) {
 	luaL_newlib(L, library);
+	setHeaderLinkTypeValues(L);
 	return 1;
 }

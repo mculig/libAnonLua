@@ -6,261 +6,262 @@
  */
 
 #include "linktype.h"
-#include "string.h"
 
 
-//Apparently the proper way to do this in C is indeed an ugly if-else ladder. Sucks :(
-int headerLinkTypeValue(const char *name) {
-	if (strcmp(name, "LINKTYPE_NULL") == 0)
-		return 0;
-	else if (strcmp(name, "LINKTYPE_ETHERNET") == 0)
-		return 1;
-	else if (strcmp(name, "LINKTYPE_AX25") == 0)
-		return 3;
-	else if (strcmp(name, "LINKTYPE_IEEE802_5") == 0)
-		return 6;
-	else if (strcmp(name, "LINKTYPE_ARCNET_BSD") == 0)
-		return 7;
-	else if (strcmp(name, "LINKTYPE_SLIP") == 0)
-		return 8;
-	else if (strcmp(name, "LINKTYPE_PPP") == 0)
-		return 9;
-	else if (strcmp(name, "LINKTYPE_FDDI") == 0)
-		return 10;
-	else if (strcmp(name, "LINKTYPE_PPP_HDLC") == 0)
-		return 50;
-	else if (strcmp(name, "LINKTYPE_PPP_ETHER") == 0)
-		return 51;
-	else if (strcmp(name, "LINKTYPE_ATM_RFC1483") == 0)
-		return 100;
-	else if (strcmp(name, "LINKTYPE_RAW") == 0)
-		return 101;
-	else if (strcmp(name, "LINKTYPE_C_HDLC") == 0)
-		return 104;
-	else if (strcmp(name, "LINKTYPE_IEEE802_11") == 0)
-		return 105;
-	else if (strcmp(name, "LINKTYPE_FRELAY") == 0)
-		return 107;
-	else if (strcmp(name, "LINKTYPE_LOOP") == 0)
-		return 108;
-	else if (strcmp(name, "LINKTYPE_LINUX_SLL") == 0)
-		return 113;
-	else if (strcmp(name, "LINKTYPE_LTALK") == 0)
-		return 114;
-	else if (strcmp(name, "LINKTYPE_PFLOG") == 0)
-		return 117;
-	else if (strcmp(name, "LINKTYPE_IEEE802_11_PRISM") == 0)
-		return 119;
-	else if (strcmp(name, "LINKTYPE_IP_OVER_FC") == 0)
-		return 122;
-	else if (strcmp(name, "LINKTYPE_SUNATM") == 0)
-		return 123;
-	else if (strcmp(name, "LINKTYPE_IEEE802_11_RADIOTAP") == 0)
-		return 127;
-	else if (strcmp(name, "LINKTYPE_ARCNET_LINUX") == 0)
-		return 129;
-	else if (strcmp(name, "LINKTYPE_APPLE_IP_OVER_IEEE1394") == 0)
-		return 138;
-	else if (strcmp(name, "LINKTYPE_MTP2_WITH_PHDR") == 0)
-		return 139;
-	else if (strcmp(name, "LINKTYPE_MTP2") == 0)
-		return 140;
-	else if (strcmp(name, "LINKTYPE_MTP3") == 0)
-		return 141;
-	else if (strcmp(name, "LINKTYPE_SCCP") == 0)
-		return 142;
-	else if (strcmp(name, "LINKTYPE_DOCSIS") == 0)
-		return 143;
-	else if (strcmp(name, "LINKTYPE_LINUX_IRDA") == 0)
-		return 144;
-	else if (strcmp(name, "LINKTYPE_USER0") == 0)
-		return 147;
-	else if (strcmp(name, "LINKTYPE_USER1") == 0)
-		return 148;
-	else if (strcmp(name, "LINKTYPE_USER2") == 0)
-		return 149;
-	else if (strcmp(name, "LINKTYPE_USER3") == 0)
-		return 150;
-	else if (strcmp(name, "LINKTYPE_USER4") == 0)
-		return 151;
-	else if (strcmp(name, "LINKTYPE_USER5") == 0)
-		return 152;
-	else if (strcmp(name, "LINKTYPE_USER6") == 0)
-		return 153;
-	else if (strcmp(name, "LINKTYPE_USER7") == 0)
-		return 154;
-	else if (strcmp(name, "LINKTYPE_USER8") == 0)
-		return 155;
-	else if (strcmp(name, "LINKTYPE_USER9") == 0)
-		return 156;
-	else if (strcmp(name, "LINKTYPE_USER10") == 0)
-		return 157;
-	else if (strcmp(name, "LINKTYPE_USER11") == 0)
-		return 158;
-	else if (strcmp(name, "LINKTYPE_USER12") == 0)
-		return 159;
-	else if (strcmp(name, "LINKTYPE_USER13") == 0)
-		return 160;
-	else if (strcmp(name, "LINKTYPE_USER14") == 0)
-		return 161;
-	else if (strcmp(name, "LINKTYPE_USER15") == 0)
-		return 162;
-	else if (strcmp(name, "LINKTYPE_IEEE802_11_AVS") == 0)
-		return 163;
-	else if (strcmp(name, "LINKTYPE_BACNET_MS_TP") == 0)
-		return 165;
-	else if (strcmp(name, "LINKTYPE_PPP_PPPD") == 0)
-		return 166;
-	else if (strcmp(name, "LINKTYPE_GPRS_LLC") == 0)
-		return 169;
-	else if (strcmp(name, "LINKTYPE_GPF_T") == 0)
-		return 170;
-	else if (strcmp(name, "LINKTYPE_GPF_F") == 0)
-		return 171;
-	else if (strcmp(name, "LINKTYPE_LINUX_LAPD") == 0)
-		return 177;
-	else if (strcmp(name, "LINKTYPE_MFR") == 0)
-		return 182;
-	else if (strcmp(name, "LINKTYPE_BLUETOOTH_HCI_H4") == 0)
-		return 187;
-	else if (strcmp(name, "LINKTYPE_USB_LINUX") == 0)
-		return 189;
-	else if (strcmp(name, "LINKTYPE_PPI") == 0)
-		return 192;
-	else if (strcmp(name, "LINKTYPE_IEEE802_15_4_WITHFCS") == 0)
-		return 195;
-	else if (strcmp(name, "LINKTYPE_SITA") == 0)
-		return 196;
-	else if (strcmp(name, "LINKTYPE_ERF") == 0)
-		return 197;
-	else if (strcmp(name, "LINKTYPE_BLUETOOTH_HCI_H4_WITH_PHDR") == 0)
-		return 201;
-	else if (strcmp(name, "LINKTYPE_AX25_KISS") == 0)
-		return 202;
-	else if (strcmp(name, "LINKTYPE_LAPD") == 0)
-		return 203;
-	else if (strcmp(name, "LINKTYPE_PPP_WITH_DIR") == 0)
-		return 204;
-	else if (strcmp(name, "LINKTYPE_C_HDLC_WITH_DIR") == 0)
-		return 205;
-	else if (strcmp(name, "LINKTYPE_FRELAY_WITH_DIR") == 0)
-		return 206;
-	else if (strcmp(name, "LINKTYPE_LAPB_WITH_DIR") == 0)
-		return 207;
-	else if (strcmp(name, "LINKTYPE_IPMB_LINUX") == 0)
-		return 209;
-	else if (strcmp(name, "LINKTYPE_IEEE802_15_4_NONASK_PHY") == 0)
-		return 215;
-	else if (strcmp(name, "LINKTYPE_USB_LINUX_MMAPPED") == 0)
-		return 220;
-	else if (strcmp(name, "LINKTYPE_FC_2") == 0)
-		return 224;
-	else if (strcmp(name, "LINKTYPE_FC_2_WITH_FRAME_DELIMS") == 0)
-		return 225;
-	else if (strcmp(name, "LINKTYPE_IPNET") == 0)
-		return 226;
-	else if (strcmp(name, "LINKTYPE_CAN_SOCKETCAN") == 0)
-		return 227;
-	else if (strcmp(name, "LINKTYPE_IPV4") == 0)
-		return 228;
-	else if (strcmp(name, "LINKTYPE_IPV6") == 0)
-		return 229;
-	else if (strcmp(name, "LINKTYPE_IEEE802_15_4_NOFCS") == 0)
-		return 230;
-	else if (strcmp(name, "LINKTYPE_DBUS") == 0)
-		return 231;
-	else if (strcmp(name, "LINKTYPE_DVB_CI") == 0)
-		return 235;
-	else if (strcmp(name, "LINKTYPE_MUX27010") == 0)
-		return 236;
-	else if (strcmp(name, "LINKTYPE_STANAG_5066_D_PDU") == 0)
-		return 237;
-	else if (strcmp(name, "LINKTYPE_NFLOG") == 0)
-		return 239;
-	else if (strcmp(name, "LINKTYPE_NETANALYZER") == 0)
-		return 240;
-	else if (strcmp(name, "LINKTYPE_NETANALYZER_TRANSPARENT") == 0)
-		return 241;
-	else if (strcmp(name, "LINKTYPE_IPOIB") == 0)
-		return 242;
-	else if (strcmp(name, "LINKTYPE_MPEG_2_TS") == 0)
-		return 243;
-	else if (strcmp(name, "LINKTYPE_NG40") == 0)
-		return 244;
-	else if (strcmp(name, "LINKTYPE_NFC_LLCP") == 0)
-		return 245;
-	else if (strcmp(name, "LINKTYPE_INFINIBAND") == 0)
-		return 247;
-	else if (strcmp(name, "LINKTYPE_SCTP") == 0)
-		return 248;
-	else if (strcmp(name, "LINKTYPE_USBPCAP") == 0)
-		return 249;
-	else if (strcmp(name, "LINKTYPE_RTAC_SERIAL") == 0)
-		return 250;
-	else if (strcmp(name, "LINKTYPE_BLUETOOTH_LE_LL") == 0)
-		return 251;
-	else if (strcmp(name, "LINKTYPE_NETLINK") == 0)
-		return 253;
-	else if (strcmp(name, "LINKTYPE_BLUETOOTH_LINUX_MONITOR") == 0)
-		return 254;
-	else if (strcmp(name, "LINKTYPE_BLUETOOTH_BREDR_BB") == 0)
-		return 255;
-	else if (strcmp(name, "LINKTYPE_BLUETOOTH_LE_LL_WITH_PHDR") == 0)
-		return 256;
-	else if (strcmp(name, "LINKTYPE_PROFIBUS_DL") == 0)
-		return 257;
-	else if (strcmp(name, "LINKTYPE_PKTAP") == 0)
-		return 258;
-	else if (strcmp(name, "LINKTYPE_EPON") == 0)
-		return 259;
-	else if (strcmp(name, "LINKTYPE_IPMI_HPM_2") == 0)
-		return 260;
-	else if (strcmp(name, "LINKTYPE_ZWAVE_R1_R2") == 0)
-		return 261;
-	else if (strcmp(name, "LINKTYPE_ZWAVE_R3") == 0)
-		return 262;
-	else if (strcmp(name, "LINKTYPE_WATTSTOPPER_DLM") == 0)
-		return 263;
-	else if (strcmp(name, "LINKTYPE_ISO_14443") == 0)
-		return 264;
-	else if (strcmp(name, "LINKTYPE_RDS") == 0)
-		return 265;
-	else if (strcmp(name, "LINKTYPE_USB_DARWIN") == 0)
-		return 266;
-	else if (strcmp(name, "LINKTYPE_SDLC") == 0)
-		return 268;
-	else if (strcmp(name, "LINKTYPE_LORATAP") == 0)
-		return 270;
-	else if (strcmp(name, "LINKTYPE_VSOCK") == 0)
-		return 271;
-	else if (strcmp(name, "LINKTYPE_NORDIC_BLE") == 0)
-		return 272;
-	else if (strcmp(name, "LINKTYPE_DOCSIS31_XRA31") == 0)
-		return 273;
-	else if (strcmp(name, "LINKTYPE_ETHERNET_MPACKET") == 0)
-		return 274;
-	else if (strcmp(name, "LINKTYPE_DISPLAYPORT_AUX") == 0)
-		return 275;
-	else if (strcmp(name, "LINKTYPE_LINUX_SLL2") == 0)
-		return 276;
-	else if (strcmp(name, "LINKTYPE_OPENVIZSLA") == 0)
-		return 278;
-	else if (strcmp(name, "LINKTYPE_EBHSCR") == 0)
-		return 279;
-	else if (strcmp(name, "LINKTYPE_VPP_DISPATCH") == 0)
-		return 280;
-	else if (strcmp(name, "LINKTYPE_DSA_TAG_BRCM") == 0)
-		return 281;
-	else if (strcmp(name, "LINKTYPE_DSA_TAG_BRCM_PREPEND") == 0)
-		return 282;
-	else if (strcmp(name, "LINKTYPE_IEEE802_15_4_TAP") == 0)
-		return 283;
-	else if (strcmp(name, "LINKTYPE_DSA_TAG_DSA") == 0)
-		return 284;
-	else if (strcmp(name, "LINKTYPE_DSA_TAG_EDSA") == 0)
-		return 285;
-	else if (strcmp(name, "LINKTYPE_ELEE") == 0)
-		return 286;
-	else
-		return 0;
+//Push all the different header link layer types and set them as globals in Lua
+void setHeaderLinkTypeValues(lua_State *L) {
+	lua_pushnumber(L, 0);
+	lua_setfield(L, -2, "LINKTYPE_NULL");
+	lua_pushnumber(L, 1);
+	lua_setfield(L, -2, "LINKTYPE_ETHERNET");
+	lua_pushnumber(L, 3);
+	lua_setfield(L, -2, "LINKTYPE_AX25");
+	lua_pushnumber(L, 6);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_5");
+	lua_pushnumber(L, 7);
+	lua_setfield(L, -2, "LINKTYPE_ARCNET_BSD");
+	lua_pushnumber(L, 8);
+	lua_setfield(L, -2, "LINKTYPE_SLIP");
+	lua_pushnumber(L, 9);
+	lua_setfield(L, -2, "LINKTYPE_PPP");
+	lua_pushnumber(L, 10);
+	lua_setfield(L, -2, "LINKTYPE_FDDI");
+	lua_pushnumber(L, 50);
+	lua_setfield(L, -2, "LINKTYPE_PPP_HDLC");
+	lua_pushnumber(L, 51);
+	lua_setfield(L, -2, "LINKTYPE_PPP_ETHER");
+	lua_pushnumber(L, 100);
+	lua_setfield(L, -2, "LINKTYPE_ATM_RFC1483");
+	lua_pushnumber(L, 101);
+	lua_setfield(L, -2, "LINKTYPE_RAW");
+	lua_pushnumber(L, 104);
+	lua_setfield(L, -2, "LINKTYPE_C_HDLC");
+	lua_pushnumber(L, 105);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_11");
+	lua_pushnumber(L, 107);
+	lua_setfield(L, -2, "LINKTYPE_FRELAY");
+	lua_pushnumber(L, 108);
+	lua_setfield(L, -2, "LINKTYPE_LOOP");
+	lua_pushnumber(L, 113);
+	lua_setfield(L, -2, "LINKTYPE_LINUX_SLL");
+	lua_pushnumber(L, 114);
+	lua_setfield(L, -2, "LINKTYPE_LTALK");
+	lua_pushnumber(L, 117);
+	lua_setfield(L, -2, "LINKTYPE_PFLOG");
+	lua_pushnumber(L, 119);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_11_PRISM");
+	lua_pushnumber(L, 122);
+	lua_setfield(L, -2, "LINKTYPE_IP_OVER_FC");
+	lua_pushnumber(L, 123);
+	lua_setfield(L, -2, "LINKTYPE_SUNATM");
+	lua_pushnumber(L, 127);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_11_RADIOTAP");
+	lua_pushnumber(L, 129);
+	lua_setfield(L, -2, "LINKTYPE_ARCNET_LINUX");
+	lua_pushnumber(L, 138);
+	lua_setfield(L, -2, "LINKTYPE_APPLE_IP_OVER_IEEE1394");
+	lua_pushnumber(L, 139);
+	lua_setfield(L, -2, "LINKTYPE_MTP2_WITH_PHDR");
+	lua_pushnumber(L, 140);
+	lua_setfield(L, -2, "LINKTYPE_MTP2");
+	lua_pushnumber(L, 141);
+	lua_setfield(L, -2, "LINKTYPE_MTP3");
+	lua_pushnumber(L, 142);
+	lua_setfield(L, -2, "LINKTYPE_SCCP");
+	lua_pushnumber(L, 143);
+	lua_setfield(L, -2, "LINKTYPE_DOCSIS");
+	lua_pushnumber(L, 144);
+	lua_setfield(L, -2, "LINKTYPE_LINUX_IRDA");
+	lua_pushnumber(L, 147);
+	lua_setfield(L, -2, "LINKTYPE_USER0");
+	lua_pushnumber(L, 148);
+	lua_setfield(L, -2, "LINKTYPE_USER1");
+	lua_pushnumber(L, 149);
+	lua_setfield(L, -2, "LINKTYPE_USER2");
+	lua_pushnumber(L, 150);
+	lua_setfield(L, -2, "LINKTYPE_USER3");
+	lua_pushnumber(L, 151);
+	lua_setfield(L, -2, "LINKTYPE_USER4");
+	lua_pushnumber(L, 152);
+	lua_setfield(L, -2, "LINKTYPE_USER5");
+	lua_pushnumber(L, 153);
+	lua_setfield(L, -2, "LINKTYPE_USER6");
+	lua_pushnumber(L, 154);
+	lua_setfield(L, -2, "LINKTYPE_USER7");
+	lua_pushnumber(L, 155);
+	lua_setfield(L, -2, "LINKTYPE_USER8");
+	lua_pushnumber(L, 156);
+	lua_setfield(L, -2, "LINKTYPE_USER9");
+	lua_pushnumber(L, 157);
+	lua_setfield(L, -2, "LINKTYPE_USER10");
+	lua_pushnumber(L, 158);
+	lua_setfield(L, -2, "LINKTYPE_USER11");
+	lua_pushnumber(L, 159);
+	lua_setfield(L, -2, "LINKTYPE_USER12");
+	lua_pushnumber(L, 160);
+	lua_setfield(L, -2, "LINKTYPE_USER13");
+	lua_pushnumber(L, 161);
+	lua_setfield(L, -2, "LINKTYPE_USER14");
+	lua_pushnumber(L, 162);
+	lua_setfield(L, -2, "LINKTYPE_USER15");
+	lua_pushnumber(L, 163);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_11_AVS");
+	lua_pushnumber(L, 165);
+	lua_setfield(L, -2, "LINKTYPE_BACNET_MS_TP");
+	lua_pushnumber(L, 166);
+	lua_setfield(L, -2, "LINKTYPE_PPP_PPPD");
+	lua_pushnumber(L, 169);
+	lua_setfield(L, -2, "LINKTYPE_GPRS_LLC");
+	lua_pushnumber(L, 170);
+	lua_setfield(L, -2, "LINKTYPE_GPF_T");
+	lua_pushnumber(L, 171);
+	lua_setfield(L, -2, "LINKTYPE_GPF_F");
+	lua_pushnumber(L, 177);
+	lua_setfield(L, -2, "LINKTYPE_LINUX_LAPD");
+	lua_pushnumber(L, 182);
+	lua_setfield(L, -2, "LINKTYPE_MFR");
+	lua_pushnumber(L, 187);
+	lua_setfield(L, -2, "LINKTYPE_BLUETOOTH_HCI_H4");
+	lua_pushnumber(L, 189);
+	lua_setfield(L, -2, "LINKTYPE_USB_LINUX");
+	lua_pushnumber(L, 192);
+	lua_setfield(L, -2, "LINKTYPE_PPI");
+	lua_pushnumber(L, 195);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_15_4_WITHFCS");
+	lua_pushnumber(L, 196);
+	lua_setfield(L, -2, "LINKTYPE_SITA");
+	lua_pushnumber(L, 197);
+	lua_setfield(L, -2, "LINKTYPE_ERF");
+	lua_pushnumber(L, 201);
+	lua_setfield(L, -2, "LINKTYPE_BLUETOOTH_HCI_H4_WITH_PHDR");
+	lua_pushnumber(L, 202);
+	lua_setfield(L, -2, "LINKTYPE_AX25_KISS");
+	lua_pushnumber(L, 203);
+	lua_setfield(L, -2, "LINKTYPE_LAPD");
+	lua_pushnumber(L, 204);
+	lua_setfield(L, -2, "LINKTYPE_PPP_WITH_DIR");
+	lua_pushnumber(L, 205);
+	lua_setfield(L, -2, "LINKTYPE_C_HDLC_WITH_DIR");
+	lua_pushnumber(L, 206);
+	lua_setfield(L, -2, "LINKTYPE_FRELAY_WITH_DIR");
+	lua_pushnumber(L, 207);
+	lua_setfield(L, -2, "LINKTYPE_LAPB_WITH_DIR");
+	lua_pushnumber(L, 209);
+	lua_setfield(L, -2, "LINKTYPE_IPMB_LINUX");
+	lua_pushnumber(L, 215);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_15_4_NONASK_PHY");
+	lua_pushnumber(L, 220);
+	lua_setfield(L, -2, "LINKTYPE_USB_LINUX_MMAPPED");
+	lua_pushnumber(L, 224);
+	lua_setfield(L, -2, "LINKTYPE_FC_2");
+	lua_pushnumber(L, 225);
+	lua_setfield(L, -2, "LINKTYPE_FC_2_WITH_FRAME_DELIMS");
+	lua_pushnumber(L, 226);
+	lua_setfield(L, -2, "LINKTYPE_IPNET");
+	lua_pushnumber(L, 227);
+	lua_setfield(L, -2, "LINKTYPE_CAN_SOCKETCAN");
+	lua_pushnumber(L, 228);
+	lua_setfield(L, -2, "LINKTYPE_IPV4");
+	lua_pushnumber(L, 229);
+	lua_setfield(L, -2, "LINKTYPE_IPV6");
+	lua_pushnumber(L, 230);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_15_4_NOFCS");
+	lua_pushnumber(L, 231);
+	lua_setfield(L, -2, "LINKTYPE_DBUS");
+	lua_pushnumber(L, 235);
+	lua_setfield(L, -2, "LINKTYPE_DVB_CI");
+	lua_pushnumber(L, 236);
+	lua_setfield(L, -2, "LINKTYPE_MUX27010");
+	lua_pushnumber(L, 237);
+	lua_setfield(L, -2, "LINKTYPE_STANAG_5066_D_PDU");
+	lua_pushnumber(L, 239);
+	lua_setfield(L, -2, "LINKTYPE_NFLOG");
+	lua_pushnumber(L, 240);
+	lua_setfield(L, -2, "LINKTYPE_NETANALYZER");
+	lua_pushnumber(L, 241);
+	lua_setfield(L, -2, "LINKTYPE_NETANALYZER_TRANSPARENT");
+	lua_pushnumber(L, 242);
+	lua_setfield(L, -2, "LINKTYPE_IPOIB");
+	lua_pushnumber(L, 243);
+	lua_setfield(L, -2, "LINKTYPE_MPEG_2_TS");
+	lua_pushnumber(L, 244);
+	lua_setfield(L, -2, "LINKTYPE_NG40");
+	lua_pushnumber(L, 245);
+	lua_setfield(L, -2, "LINKTYPE_NFC_LLCP");
+	lua_pushnumber(L, 247);
+	lua_setfield(L, -2, "LINKTYPE_INFINIBAND");
+	lua_pushnumber(L, 248);
+	lua_setfield(L, -2, "LINKTYPE_SCTP");
+	lua_pushnumber(L, 249);
+	lua_setfield(L, -2, "LINKTYPE_USBPCAP");
+	lua_pushnumber(L, 250);
+	lua_setfield(L, -2, "LINKTYPE_RTAC_SERIAL");
+	lua_pushnumber(L, 251);
+	lua_setfield(L, -2, "LINKTYPE_BLUETOOTH_LE_LL");
+	lua_pushnumber(L, 253);
+	lua_setfield(L, -2, "LINKTYPE_NETLINK");
+	lua_pushnumber(L, 254);
+	lua_setfield(L, -2, "LINKTYPE_BLUETOOTH_LINUX_MONITOR");
+	lua_pushnumber(L, 255);
+	lua_setfield(L, -2, "LINKTYPE_BLUETOOTH_BREDR_BB");
+	lua_pushnumber(L, 256);
+	lua_setfield(L, -2, "LINKTYPE_BLUETOOTH_LE_LL_WITH_PHDR");
+	lua_pushnumber(L, 257);
+	lua_setfield(L, -2, "LINKTYPE_PROFIBUS_DL");
+	lua_pushnumber(L, 258);
+	lua_setfield(L, -2, "LINKTYPE_PKTAP");
+	lua_pushnumber(L, 259);
+	lua_setfield(L, -2, "LINKTYPE_EPON");
+	lua_pushnumber(L, 260);
+	lua_setfield(L, -2, "LINKTYPE_IPMI_HPM_2");
+	lua_pushnumber(L, 261);
+	lua_setfield(L, -2, "LINKTYPE_ZWAVE_R1_R2");
+	lua_pushnumber(L, 262);
+	lua_setfield(L, -2, "LINKTYPE_ZWAVE_R3");
+	lua_pushnumber(L, 263);
+	lua_setfield(L, -2, "LINKTYPE_WATTSTOPPER_DLM");
+	lua_pushnumber(L, 264);
+	lua_setfield(L, -2, "LINKTYPE_ISO_14443");
+	lua_pushnumber(L, 265);
+	lua_setfield(L, -2, "LINKTYPE_RDS");
+	lua_pushnumber(L, 266);
+	lua_setfield(L, -2, "LINKTYPE_USB_DARWIN");
+	lua_pushnumber(L, 268);
+	lua_setfield(L, -2, "LINKTYPE_SDLC");
+	lua_pushnumber(L, 270);
+	lua_setfield(L, -2, "LINKTYPE_LORATAP");
+	lua_pushnumber(L, 271);
+	lua_setfield(L, -2, "LINKTYPE_VSOCK");
+	lua_pushnumber(L, 272);
+	lua_setfield(L, -2, "LINKTYPE_NORDIC_BLE");
+	lua_pushnumber(L, 273);
+	lua_setfield(L, -2, "LINKTYPE_DOCSIS31_XRA31");
+	lua_pushnumber(L, 274);
+	lua_setfield(L, -2, "LINKTYPE_ETHERNET_MPACKET");
+	lua_pushnumber(L, 275);
+	lua_setfield(L, -2, "LINKTYPE_DISPLAYPORT_AUX");
+	lua_pushnumber(L, 276);
+	lua_setfield(L, -2, "LINKTYPE_LINUX_SLL2");
+	lua_pushnumber(L, 278);
+	lua_setfield(L, -2, "LINKTYPE_OPENVIZSLA");
+	lua_pushnumber(L, 279);
+	lua_setfield(L, -2, "LINKTYPE_EBHSCR");
+	lua_pushnumber(L, 280);
+	lua_setfield(L, -2, "LINKTYPE_VPP_DISPATCH");
+	lua_pushnumber(L, 281);
+	lua_setfield(L, -2, "LINKTYPE_DSA_TAG_BRCM");
+	lua_pushnumber(L, 282);
+	lua_setfield(L, -2, "LINKTYPE_DSA_TAG_BRCM_PREPEND");
+	lua_pushnumber(L, 283);
+	lua_setfield(L, -2, "LINKTYPE_IEEE802_15_4_TAP");
+	lua_pushnumber(L, 284);
+	lua_setfield(L, -2, "LINKTYPE_DSA_TAG_DSA");
+	lua_pushnumber(L, 285);
+	lua_setfield(L, -2, "LINKTYPE_DSA_TAG_EDSA");
+	lua_pushnumber(L, 286);
+	lua_setfield(L, -2, "LINKTYPE_ELEE");
+	lua_pushnumber(L, 287);
+	lua_setfield(L, -2, "LINKTYPE_Z_WAVE_SERIAL");
+	lua_pushnumber(L, 288);
+	lua_setfield(L, -2, "LINKTYPE_USB_2_0");
 }

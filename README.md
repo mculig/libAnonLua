@@ -13,9 +13,11 @@ Creates a pcapng file at path with a Section Header Block
 
 ---
 
-**add_interface(string path, string LINKTYPE_ name)**
+**add_interface(string path, LINKTYPE type)**
 
-Adds an Interface Description Block to the pcapng file located at path with the link type set to the type corresponding to LINKTYPE_name. Linktypes can be found at https://www.tcpdump.org/linktypes.html
+Adds an Interface Description Block to the pcapng file located at path with the link type set to LINKTYPE. Linktypes can be found at https://www.tcpdump.org/linktypes.html
+
+Example: add_interface("file.pcapng", libAnonLua.LINKTYPE_ETHERNET)
 
 **Returns:** 1 on success, -1 on failure
 

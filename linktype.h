@@ -8,9 +8,10 @@
 #ifndef LINKTYPE_H_
 #define LINKTYPE_H_
 
+#include "lua5.2/lua.h"
+#include "lua5.2/lualib.h"
 
-
-int headerLinkTypeValue(const char *name);
+void setHeaderLinkTypeValues(lua_State *L);
 
 
 #endif /* LINKTYPE_H_ */
