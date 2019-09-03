@@ -709,6 +709,6 @@ static const struct luaL_Reg library[] = { { "create_filesystem",
 //Function to register library
 int luaopen_libAnonLua(lua_State *L) {
 	luaL_newlib(L, library);
-	setHeaderLinkTypeValues(L);
+	setHeaderLinkTypeValues(L); //Load the link types from the CSV.
 	return 1;
 }

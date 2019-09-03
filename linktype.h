@@ -10,6 +10,7 @@
 
 #include "lua5.2/lua.h"
 #include "lua5.2/lualib.h"
+#include "stdio.h"
 
 void setHeaderLinkTypeValues(lua_State *L);
 
