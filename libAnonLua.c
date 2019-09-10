@@ -22,6 +22,7 @@
 
 //Our own libraries
 #include "linktype.h"
+#include "cryptoPAN.h"
 
 //Block types
 #define SHB_TYPE 0x0A0D0D0A
@@ -585,7 +586,7 @@ static int calculate_tcp_udp_checksum(lua_State *L) {
 					16); //Copy destination address
 			//Lenght is a 4-byte field in the pseudo-header, probably to accomodate jumbo packets. We're not doing those and our length is 2 bytes
 			//Since wire in network byte order, the 1st two bytes are our reversed datagram length, the 2nd two are zeroes.
-			memcpy(pseudo_header+32, &datagram_length_reversed, 2);
+			memcpy(pseudo_header + 32, &datagram_length_reversed, 2);
 			memset(pseudo_header + 34, 0x00, 2); //Zero the higher bytes of the field
 			memset(pseudo_header + 36, 0x00, 3); //Write the three bytes of zeroes that follow
 			memcpy(pseudo_header + 39, &ipv6_next_header, 1); //Write the next header
@@ -597,9 +598,8 @@ static int calculate_tcp_udp_checksum(lua_State *L) {
 			else if (ipv6_next_header == protocol_udp)
 				memset(pseudo_header + 46, 0x00, 2); //Erase the existing UDP checksum
 
-			for(result=0;result<pseudo_header_length;result++)
-			{
-				printf("%x\n", *(pseudo_header+result));
+			for (result = 0; result < pseudo_header_length; result++) {
+				printf("%x\n", *(pseudo_header + result));
 			}
 
 			//Create the datagram
@@ -698,13 +698,130 @@ static int HMAC(lua_State *L) {
 	return 2;
 }
 
+//Here be our cryptoPAN implementation
+
+/*
+ * Sets up what we need for the cryptoPAN algorithm
+ * Usage in Lua: init_cryptoPAN(output_file)
+ */
+static int init_cryptoPAN(lua_State *L) {
+	FILE *fp;
+	FILE *random;
+	const char *filename;
+
+	int status = -1;
+
+	const int STATE_SIZE = 64;
+	char state[64]; //32-byte AES256 KEY, 16-byte IV, 16-byte PAD sufficient for padding both IPv6 and IPv4
+
+	filename = luaL_checkstring(L, 1);
+
+	fp = fopen(filename, "r");
+	if (fp == NULL) {
+		//File not found. Create it!
+		fp = fopen(filename, "w");
+		if (fp == NULL) {
+			lua_pushnumber(L, status);
+			lua_pushlstring(L, '\0', 1);
+			return 2;
+		}
+		//Here we generate the keys
+		random = fopen("/dev/urandom", "rb");
+		if (random == NULL) {
+			lua_pushnumber(L, status);
+			lua_pushlstring(L, '\0', 1);
+			return 2;
+		}
+		//Read the state
+		fread(state, STATE_SIZE, 1, random);
+		//Write the state to file
+		fwrite(state, STATE_SIZE, 1, fp);
+	} else {
+		//Read state from file
+		fread(state, STATE_SIZE, 1, fp);
+	}
+
+	lua_pushnumber(L, status);
+	lua_pushlstring(L, state, STATE_SIZE);
+	return 2;
+}
+
+//If we had an error in the cryptoPAN functions we push our error returns to the Lua stack, free our CTX and go home
+static int free_cryptoPAN(lua_State *L, EVP_CIPHER_CTX *ctx) {
+	lua_pushnumber(L, -1);
+	lua_pushlstring(L, '\0', 1);
+	EVP_CIPHER_CTX_free(ctx);
+	return 2;
+}
+
+
+/*
+ *  Returns an IPv4 address anonymized using the cryptoPAN algorithm
+ *  Usage in Lua: cryptoPAN_anonymize_ipv4(state, address)
+ */
+static int cryptoPAN_anonymize_ipv4(lua_State *L) {
+	int status = -1;
+//	int i;
+
+	const unsigned char *state;
+
+	const char *address;
+	uint32_t address_int;
+	char anon_address[4];
+
+	const unsigned char *key; //[32] AES256 KEY
+	const unsigned char *iv; //[16] AES256 IV
+	const unsigned char *pad; //[16]Padding bytes
+
+	EVP_CIPHER_CTX *ctx;
+
+	state = (unsigned char *) luaL_checkstring(L, 1);
+	address = luaL_checkstring(L, 2);
+
+	//Set up pointers to key, iv and pad, which are parts of state
+	key = state;
+	iv = state + 32;
+	pad = (state + 48);
+
+	//Get the address to our integer address
+	memcpy(&address_int, address, 4);
+
+	//Initialize context
+	if (!(ctx = EVP_CIPHER_CTX_new())) {
+		return free_cryptoPAN(L, ctx);
+	}
+	//Disable padding. Since we're providing our own static pad. If this were on we'd end up with inconsistent output
+	EVP_CIPHER_CTX_set_padding(ctx, 0);
+	//Initialize encryption
+	if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
+		return free_cryptoPAN(L, ctx);
+	}
+	//Use our cryptoPAN function
+	//TO-DO: Add check for EVP_EncryptUpdate and add status return to verify if cryptoPAN encountered errors!
+	//Maybe move everything to cryptoPAN function
+	cryptoPAN_ipv4(address_int, (uint32_t *) anon_address, pad, ctx);
+
+	EVP_CIPHER_CTX_free(ctx); //Don't forget to free
+	status = 0;
+	lua_pushnumber(L, status);
+	lua_pushlstring(L, anon_address, 4);
+	return 2;
+}
+
+/*
+ *
+ *  Here is the Lua stuff!
+ *
+ */
+
 //To register library with lua
 static const struct luaL_Reg library[] = { { "create_filesystem",
 		create_filesystem }, { "add_interface", add_interface }, {
 		"write_packet", write_packet }, { "black_marker", black_marker }, {
 		"calculate_ipv4_checksum", calculate_ipv4_checksum }, {
 		"calculate_tcp_udp_checksum", calculate_tcp_udp_checksum }, { "HMAC",
-		HMAC }, { NULL, NULL } };
+		HMAC }, { "init_cryptoPAN", init_cryptoPAN }, {
+		"cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 }, { NULL, NULL } };
 
 //Function to register library
 int luaopen_libAnonLua(lua_State *L) {
