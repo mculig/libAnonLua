@@ -11,13 +11,20 @@
 #include "openssl/evp.h"
 #include "string.h"
 #include "arpa/inet.h"
+#include "stdio.h"
 
-void cryptoPAN_ipv4(uint32_t orig_addr, uint32_t *anon_addr, const unsigned char *m_pad, EVP_CIPHER_CTX *ctx);
+#define STATE_SIZE 64
+
+int cryptoPAN_init(const char *filename, char *state);
+
+int cryptoPAN_ipv4(uint32_t orig_addr, uint32_t *anon_addr,
+		const unsigned char *m_pad, const unsigned char *key,
+		const unsigned char *iv);
 
 void ntoh_128(uint32_t *address);
 void hton_128(uint32_t *address);
 
-void cryptoPAN_ipv6(uint32_t *orig_addr,uint32_t *anon_addr,  const unsigned char *m_pad, EVP_CIPHER_CTX *ctx);
-
+int cryptoPAN_ipv6(uint32_t *orig_addr, uint32_t *anon_addr,
+		const unsigned char *m_pad, const unsigned char *key, const unsigned char *iv);
 
 #endif /* CRYPTOPAN_H_ */
