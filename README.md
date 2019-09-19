@@ -55,6 +55,24 @@ Calculates the correct TCP or UDP checksum based on the provided (whole) IPv4 or
 
 ---
 
+**calculate_icmp_checksum(string_raw ICMP_packet, int ICMP_length)**
+
+Calculates the correct ICMP checksum based on the provided ICMP packet.
+
+**Returns:** Checksum (2-byte raw string), Provided ICMP packet with correct checksum (raw string)
+
+---
+
+**calculate_icmpv6_checksum(string_raw IPv6_packet)**
+
+Calculates the correct ICMPv6 checksum based on the provided (whole) IPv6 packet. ICMPv6 uses a pseudo-header like TCP and UDP to calculate the checksum, therefore the whole IPv6
+packet is necessary to calculate the correct checksum.
+
+**Returns:** Checksum (2-byte raw string), Provided IPv6 packet with correct ICMPv6 checksum (raw string)
+
+---
+
+
 **HMAC(string_raw bytes, int bytes_length, string salt, int iterations)**
 
 Calculates a SHA256 PBKDF2 HMAC with iterations iterations of the provided bytes that is bytes_length long and salted with salt. 
