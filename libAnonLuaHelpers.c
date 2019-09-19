@@ -21,6 +21,7 @@ uint32_t ipv6_next_header_offset(const char* packet, int protocol_number) {
 	if ((*packet >> 4) != 6)
 		return -1; //If the value of the first 4 bits isn't 6, we're not dealing with IPv6, return a failure
 	memcpy(&payload_length, packet + 4, 2); //First get the payload length. This is the length of the IPv6 payload sans header IN OCTETS
+	payload_length=payload_length>>8 | payload_length<<8; //Replace the two bytes because we use different byte order
 	next_header = *(packet + 6);
 	while (next_header != protocol_number) {
 		memcpy(&next_header, packet + header_offset, 1);
