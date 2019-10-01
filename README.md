@@ -39,11 +39,19 @@ Sets the mask_length least significant (direction=0) or most significant(directi
 
 ---
 
+**calculate_eth_fcs(string_raw frame, int frame_length)**
+
+Calculates the correct frame check sequence (FCS) for the provided ethernet frame using zlib's crc32() function. Returns the calculated checksum and the frame with the checksum appended at the end.
+
+**Returns:** Checksum (4-byte raw string), provided frame with correct checksum appended (raw string) 
+
+---
+
 **calculate_ipv4_checksum(string_raw header)**
 
 Calculates the correct checksum for the provided (whole) ipv4 header. The header needs to be in the form of RAW bytes as a string. These can be fetched from a ByteArray in the Wireshark API by using ByteArray:raw()
 
-**Returns:** Checksum (2-byte raw string), Provided header with correct checksum (raw string)
+**Returns:** Checksum (2-byte raw string), provided header with correct checksum (raw string)
 
 ---
 

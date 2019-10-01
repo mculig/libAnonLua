@@ -15,6 +15,9 @@
 #include "string.h"
 #include "stdlib.h"
 
+//zlib for crc32
+#include "zlib.h"
+
 //Crypto stuff
 #include "openssl/conf.h"
 #include "openssl/evp.h"
@@ -152,6 +155,40 @@ static int black_marker(lua_State *L) {
 	free(masked_bytes);
 
 	return 1;
+}
+
+/*Calculates a correct crc32 frame check sequence from an Ethernet frame and returns the checksum and the correct frame
+*A 4-byte frame check sequence is assumed to be present at the end of the frame
+*If your frame lacks the FCS you need to add 4 to frame_length
+*Usage in Lua: calculate_eth_fcs(frame, frame_length)
+*/
+static int calculate_eth_fcs(lua_State *L)
+{
+	const char *frame;
+	char* new_frame;
+	int frame_length;
+
+	uint32_t FCS;
+	char FCS_STR[4];
+
+	frame = luaL_checkstring(L,1);
+	frame_length=luaL_checknumber(L,2);
+
+	new_frame=(char *) malloc(frame_length);
+
+	memcpy(new_frame, frame, frame_length); //Copy our frame over
+
+	FCS=crc32(0, (unsigned char *) new_frame, frame_length-4);
+
+	memcpy(FCS_STR, &FCS, 4); //Copy the FCS into a string for output
+	memcpy(new_frame+frame_length-4, &FCS, 4); //Copy the FCS into our frame
+
+	lua_pushlstring(L, FCS_STR, 4);
+	lua_pushlstring(L, new_frame, frame_length);
+
+	free(new_frame); //Free memory
+
+	return 2;
 }
 
 //Calculates a correct ipv4 checksum from an IPv4 header and returns the checksum and the correct header
@@ -696,7 +733,7 @@ static int cryptoPAN_anonymize_ipv6(lua_State *L) {
 //To register library with lua
 static const struct luaL_Reg library[] = { { "create_filesystem",
 		create_filesystem }, { "add_interface", add_interface }, {
-		"write_packet", write_packet }, { "black_marker", black_marker }, {
+		"write_packet", write_packet }, { "black_marker", black_marker },{"calculate_eth_fcs", calculate_eth_fcs}, {
 		"calculate_ipv4_checksum", calculate_ipv4_checksum }, {
 		"calculate_tcp_udp_checksum", calculate_tcp_udp_checksum }, {
 		"calculate_icmp_checksum", calculate_icmp_checksum }, {
