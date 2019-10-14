@@ -10,30 +10,51 @@
 #include "cryptoPAN.h"
 
 int cryptoPAN_init(const char *filename, char *state) {
-	FILE *fp;
-	FILE *random;
+	FILE *fp=NULL;
+	FILE *random=NULL;
 
-	fp = fopen(filename, "r");
+	fp = fopen(filename, "rb");
 	if (fp == NULL) {
 		//File not found. Create it!
-		fp = fopen(filename, "w");
+		fp = fopen(filename, "wb");
 		if (fp == NULL) {
+			printf("Failed to open file during cryptoPAN init!\n");
 			return -1;
 		}
 		//Here we generate the keys
 		random = fopen("/dev/urandom", "rb");
 		if (random == NULL) {
+			printf("Failed to open /dev/urandom during cryptoPAN init!\n");
+			fclose(fp);
 			return -1;
 		}
 		//Read the state
-		fread(state, STATE_SIZE, 1, random);
+		if(fread(state, STATE_SIZE, 1, random)!=1)
+		{
+			printf("Failed to read the required %d bytes from /dev/urandom during cryptoPAN init!\n", STATE_SIZE);
+			fclose(fp);
+			fclose(random);
+			return -1;
+		}
 		//Write the state to file
-		fwrite(state, STATE_SIZE, 1, fp);
+		if(fwrite(state, STATE_SIZE, 1, fp)!=1)
+		{
+			printf("Failed to write state to file!");
+			fclose(fp);
+			fclose(random);
+			return -1;
+		}
 	} else {
 		//Read state from file
-		fread(state, STATE_SIZE, 1, fp);
+		if(fread(state, STATE_SIZE, 1, fp)!=1)
+		{
+			printf("Failed to read the required %d bytes from file during cryptoPAN init!\n", STATE_SIZE);
+			fclose(fp);
+			return -1;
+		}
 	}
-
+	fclose(fp);
+	fclose(random);
 	return 1;
 }
 
