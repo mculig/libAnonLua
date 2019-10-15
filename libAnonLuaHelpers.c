@@ -58,3 +58,57 @@ uint16_t calculate_internet_checksum(const char *data, int length) {
 
 	return result;
 }
+
+/*
+ *Helper function to transform an IPv4 or IPv6 address into human-readable form
+ */
+int humanForm(const char* address, int length, char* result)
+{
+	struct in_addr ipv4;
+	struct in6_addr ipv6;
+	if(length==4)
+	{
+		memcpy(&ipv4, address, 4);
+		inet_ntop(AF_INET, &ipv4, result, INET_ADDRSTRLEN);
+		return 1;
+	}
+	else if(length==16)
+	{
+		memcpy(&ipv6, address, 16);
+		inet_ntop(AF_INET6, &ipv6, result, INET6_ADDRSTRLEN);
+		return 1;
+	}
+	else
+	{
+		printf("Error transforming address to human-readable form: Input length does not match IPv4 or IPv6 length!\n");
+		return -1;
+	}
+}
+
+/*
+ * Variadic function to check pointers and close files
+ * Returns count of closed files
+ */
+int closeFiles(int count, ...)
+{
+	va_list ap;
+	int i;
+	int closed=0;
+	FILE *fp;
+
+	va_start(ap, count);
+
+	for(i=0;i<count;i++)
+	{
+		fp=va_arg(ap,FILE*);
+		if(fp!=NULL)
+		{
+			fclose(fp);
+			closed++;
+		}
+	}
+
+	va_end(ap);
+	return closed;
+}
+

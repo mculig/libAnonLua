@@ -12,6 +12,7 @@
 #include "string.h"
 #include "arpa/inet.h"
 #include "stdio.h"
+#include "libAnonLuaHelpers.h"
 
 #define STATE_SIZE 64
 

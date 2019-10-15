@@ -111,4 +111,12 @@ Anonymizes the provided IPv6 address using the cryptoPAN algorithm.
 
 **Returns:** Status (-1 FAIL, 1 SUCCESS) and the IPv6 address, or an empty string ('\0') on failure.
 
+---
+
+**ntop(string_raw address, int length)**
+
+Returns a human readable version of an IPv4 or IPv6 address as a string.
+
+**Returns:** Status (_1 FAIL, 1 SUCCESS) and a human readable string representing an IPv4 or IPv6 address, or an empty string ('\0') on failure.
+
 

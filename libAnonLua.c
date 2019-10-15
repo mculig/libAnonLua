@@ -158,12 +158,11 @@ static int black_marker(lua_State *L) {
 }
 
 /*Calculates a correct crc32 frame check sequence from an Ethernet frame and returns the checksum and the correct frame
-*A 4-byte frame check sequence is assumed to be present at the end of the frame
-*If your frame lacks the FCS you need to add 4 to frame_length
-*Usage in Lua: calculate_eth_fcs(frame, frame_length)
-*/
-static int calculate_eth_fcs(lua_State *L)
-{
+ *A 4-byte frame check sequence is assumed to be present at the end of the frame
+ *If your frame lacks the FCS you need to add 4 to frame_length
+ *Usage in Lua: calculate_eth_fcs(frame, frame_length)
+ */
+static int calculate_eth_fcs(lua_State *L) {
 	const char *frame;
 	char* new_frame;
 	int frame_length;
@@ -171,17 +170,17 @@ static int calculate_eth_fcs(lua_State *L)
 	uint32_t FCS;
 	char FCS_STR[4];
 
-	frame = luaL_checkstring(L,1);
-	frame_length=luaL_checknumber(L,2);
+	frame = luaL_checkstring(L, 1);
+	frame_length = luaL_checknumber(L, 2);
 
-	new_frame=(char *) malloc(frame_length);
+	new_frame = (char *) malloc(frame_length);
 
 	memcpy(new_frame, frame, frame_length); //Copy our frame over
 
-	FCS=crc32(0, (unsigned char *) new_frame, frame_length-4);
+	FCS = crc32(0, (unsigned char *) new_frame, frame_length - 4);
 
 	memcpy(FCS_STR, &FCS, 4); //Copy the FCS into a string for output
-	memcpy(new_frame+frame_length-4, &FCS, 4); //Copy the FCS into our frame
+	memcpy(new_frame + frame_length - 4, &FCS, 4); //Copy the FCS into our frame
 
 	lua_pushlstring(L, FCS_STR, 4);
 	lua_pushlstring(L, new_frame, frame_length);
@@ -543,7 +542,7 @@ static int calculate_icmpv6_checksum(lua_State *L) {
 	memcpy(pseudo_header + 32, &icmpv6_length_big_endian, 4); //Set the ICMPv6 length
 	memset(pseudo_header + 36, 0x00, 3); //3 bytes of zeroes
 	memset(pseudo_header + 39, 58, 1); //1-byte protocol number for ICMPv6
-	memcpy(pseudo_header + 40, packet_orig+offset, length - offset); //Copy the rest of the ICMPv6 payload
+	memcpy(pseudo_header + 40, packet_orig + offset, length - offset); //Copy the rest of the ICMPv6 payload
 	memset(pseudo_header + 42, 0x00, 2); //Set the 2-byte checksum in the ICMPv6 payload to 0
 
 	//Calculate the checksum
@@ -725,6 +724,41 @@ static int cryptoPAN_anonymize_ipv6(lua_State *L) {
 }
 
 /*
+ * Some helper functions that were needed along the way
+ */
+
+/*
+ * Transform an IPv4 or IPv6 address from network order to print or human-readable form
+ * Usage in Lua: ntop(address, length)
+ */
+static int ntop(lua_State *L) {
+	int status = -1;
+	char *result;
+
+	const char *address;
+	int length;
+
+	address = luaL_checkstring(L, 1);
+	length = luaL_checknumber(L, 2);
+
+	result=malloc(INET6_ADDRSTRLEN); //This way it's certainly long enough
+
+	status = humanForm(address, length, result);
+
+	lua_pushnumber(L, status);
+	if (status == -1) {
+		lua_pushlstring(L, '\0', 1);
+		free(result);
+		return 2;
+	} else {
+		lua_pushlstring(L, result, strlen(result));
+		free(result);
+		return 2;
+	}
+
+}
+
+/*
  *
  *  Here is the Lua stuff!
  *
@@ -733,15 +767,17 @@ static int cryptoPAN_anonymize_ipv6(lua_State *L) {
 //To register library with lua
 static const struct luaL_Reg library[] = { { "create_filesystem",
 		create_filesystem }, { "add_interface", add_interface }, {
-		"write_packet", write_packet }, { "black_marker", black_marker },{"calculate_eth_fcs", calculate_eth_fcs}, {
-		"calculate_ipv4_checksum", calculate_ipv4_checksum }, {
-		"calculate_tcp_udp_checksum", calculate_tcp_udp_checksum }, {
-		"calculate_icmp_checksum", calculate_icmp_checksum }, {
-		"calculate_icmpv6_checksum", calculate_icmpv6_checksum },
-		{ "HMAC", HMAC }, { "init_cryptoPAN", init_cryptoPAN }, {
-				"cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 }, {
-				"cryptoPAN_anonymize_ipv6", cryptoPAN_anonymize_ipv6 }, { NULL,
-				NULL } };
+		"write_packet", write_packet }, { "black_marker", black_marker }, {
+		"calculate_eth_fcs", calculate_eth_fcs }, { "calculate_ipv4_checksum",
+		calculate_ipv4_checksum }, { "calculate_tcp_udp_checksum",
+		calculate_tcp_udp_checksum }, { "calculate_icmp_checksum",
+		calculate_icmp_checksum }, { "calculate_icmpv6_checksum",
+		calculate_icmpv6_checksum }, { "HMAC", HMAC }, { "init_cryptoPAN",
+		init_cryptoPAN },
+		{ "cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 }, {
+				"cryptoPAN_anonymize_ipv6", cryptoPAN_anonymize_ipv6 }, {
+				"ntop", ntop }, { NULL,
+		NULL } };
 
 //Function to register library
 int luaopen_libAnonLua(lua_State *L) {
