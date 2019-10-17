@@ -119,4 +119,14 @@ Returns a human readable version of an IPv4 or IPv6 address as a string.
 
 **Returns:** Status (_1 FAIL, 1 SUCCESS) and a human readable string representing an IPv4 or IPv6 address, or an empty string ('\0') on failure.
 
+---
+
+**ip4_in_subnet(string_raw address, string CIDR_notation)**
+
+Verifies if the provided address (in network order) is in the subnet provided in CIDR_notation as a string, i.e. 192.168.2.0/24
+
+**Returns:** Boolean indicating address is in subnt (true) or not (false)
+
+
+
 

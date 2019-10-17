@@ -86,6 +86,52 @@ int humanForm(const char* address, int length, char* result)
 }
 
 /*
+ * Helper function to check if an IPv4 address is in a subnet
+ * Address is assumed to be an array of bytes in network order, cidr_subnet is a string with a subnet in CIDR notation, i.e. 192.168.1.0/24
+ */
+int	ipv4_in_subnet(const char* address, const char* cidr_subnet)
+{
+	uint32_t test_address;
+	uint32_t network_address;
+	uint32_t subnet_mask;
+	char *network_address_char;
+	uint8_t cidr_subnet_network_length;
+	uint8_t cidr_subnet_mask_bit_count=0;
+	int i;
+
+	//Get the length of the network part of cidr_subnet. If / is found at spot 5, there are 5 characters before /, namely 0-4
+	cidr_subnet_network_length = strchr(cidr_subnet, '/') - cidr_subnet;
+	network_address_char = (char *) malloc(cidr_subnet_network_length+1); //+1 so we can add the \0 character
+
+	memcpy(&test_address, address, 4);
+
+	memcpy(network_address_char, cidr_subnet, cidr_subnet_network_length);
+	network_address_char[cidr_subnet_network_length]='\0';
+
+	inet_pton(AF_INET, network_address_char, &network_address); //Network address should now contain bytes representing the address in the CIDR notation subnet in network order
+
+	free(network_address_char); //We don't need you anymore. Thank you for your service.
+
+	//Get the number of bits in the subnet mask
+	for(i=cidr_subnet_network_length+1; i<strlen(cidr_subnet); i++)
+	{
+		cidr_subnet_mask_bit_count*=10;
+		cidr_subnet_mask_bit_count+=cidr_subnet[i]-48; //Convert char to number
+	}
+
+	//Set the subnet mask
+	subnet_mask=0xFFFFFF<<(32-cidr_subnet_mask_bit_count);
+	subnet_mask=htonl(subnet_mask);
+
+	network_address=network_address & subnet_mask; //Make sure the network address really is a network address by anding it with the subnet_mask
+
+	if((test_address & subnet_mask) == network_address)
+		return 1;
+
+	return -1;
+}
+
+/*
  * Variadic function to check pointers and close files
  * Returns count of closed files
  */

@@ -741,7 +741,7 @@ static int ntop(lua_State *L) {
 	address = luaL_checkstring(L, 1);
 	length = luaL_checknumber(L, 2);
 
-	result=malloc(INET6_ADDRSTRLEN); //This way it's certainly long enough
+	result = malloc(INET6_ADDRSTRLEN); //This way it's certainly long enough
 
 	status = humanForm(address, length, result);
 
@@ -756,6 +756,28 @@ static int ntop(lua_State *L) {
 		return 2;
 	}
 
+}
+
+/*
+ * Check if an IPv4 address is in a subnet
+ * Usage in Lua: ip4_in_subnet(address, cidr_notation_subnet)
+ */
+static int ip4_in_subnet(lua_State *L) {
+	const char *address;
+	const char *cidr_notation;
+	int result;
+
+	address = luaL_checkstring(L, 1);
+	cidr_notation = luaL_checkstring(L, 2);
+
+	result = ipv4_in_subnet(address, cidr_notation);
+
+	if (result == 1)
+		lua_pushboolean(L, 1);
+	else
+		lua_pushboolean(L, 0);
+
+	return 1;
 }
 
 /*
@@ -776,7 +798,7 @@ static const struct luaL_Reg library[] = { { "create_filesystem",
 		init_cryptoPAN },
 		{ "cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 }, {
 				"cryptoPAN_anonymize_ipv6", cryptoPAN_anonymize_ipv6 }, {
-				"ntop", ntop }, { NULL,
+				"ntop", ntop }, { "ip4_in_subnet", ip4_in_subnet }, { NULL,
 		NULL } };
 
 //Function to register library

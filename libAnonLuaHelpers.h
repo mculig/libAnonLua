@@ -9,6 +9,7 @@
 #define LIBANONLUAHELPERS_H_
 
 #include "stdio.h"
+#include "stdlib.h"
 #include "stdint.h"
 #include "string.h"
 #include "arpa/inet.h"
@@ -26,6 +27,9 @@ uint16_t calculate_internet_checksum(const char *data, int length);
 
 //Returns an ipv4 or ipv6 address in human readable form
 int humanForm(const char* address, int length, char* result);
+
+//Checks if an IPv4 address is in the provided subnet. Returns 1 if true, -1 if false
+int	ipv4_in_subnet(const char* address, const char* cidr_subnet);
 
 //Closes count files using fclose, tests if the pointers are null to avoid segfaults
 int closeFiles(int count, ...);
