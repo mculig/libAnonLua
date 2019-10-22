@@ -729,17 +729,21 @@ static int cryptoPAN_anonymize_ipv6(lua_State *L) {
 
 /*
  * Transform an IPv4 or IPv6 address from network order to print or human-readable form
- * Usage in Lua: ntop(address, length)
+ * Usage in Lua: ntop(address)
  */
 static int ntop(lua_State *L) {
 	int status = -1;
 	char *result;
 
 	const char *address;
-	int length;
+	size_t length;
 
-	address = luaL_checkstring(L, 1);
-	length = luaL_checknumber(L, 2);
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		address = lua_tolstring(L, 1, &length);
+	} else {
+		luaL_error(L, "Error: Wrong argument to ntop. String expected!");
+		return 0;
+	}
 
 	result = malloc(INET6_ADDRSTRLEN); //This way it's certainly long enough
 
@@ -749,11 +753,11 @@ static int ntop(lua_State *L) {
 	if (status == -1) {
 		lua_pushlstring(L, '\0', 1);
 		free(result);
-		return 2;
+		return 1;
 	} else {
 		lua_pushlstring(L, result, strlen(result));
 		free(result);
-		return 2;
+		return 1;
 	}
 
 }
@@ -762,21 +766,40 @@ static int ntop(lua_State *L) {
  * Check if an IPv4 address is in a subnet
  * Usage in Lua: ip4_in_subnet(address, cidr_notation_subnet)
  */
-static int ip4_in_subnet(lua_State *L) {
+static int ip_in_subnet(lua_State *L) {
 	const char *address;
 	const char *cidr_notation;
+	size_t address_length;
+	size_t notation_length;
 	int result;
 
-	address = luaL_checkstring(L, 1);
-	cidr_notation = luaL_checkstring(L, 2);
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		address = lua_tolstring(L, 1, &address_length);
+	} else {
+		luaL_error(L,
+				"Error: Wrong argument 1 to ip_in_subnet. String expected!");
+		return 0;
+	}
 
-	result = ipv4_in_subnet(address, cidr_notation);
+	if (lua_type(L, 2) == LUA_TSTRING) {
+		cidr_notation = lua_tolstring(L, 2, &notation_length);
+	} else {
+		luaL_error(L,
+				"Error: Wrong argument 2 to ip_in_subnet. String expected!");
+		return 0;
+	}
+
+	if (address_length == 4) {
+		result = ipv4_in_subnet(address, cidr_notation);
+
+	} else {
+		result = ipv6_in_subnet(address, cidr_notation);
+	}
 
 	if (result == 1)
 		lua_pushboolean(L, 1);
 	else
 		lua_pushboolean(L, 0);
-
 	return 1;
 }
 
@@ -798,7 +821,7 @@ static const struct luaL_Reg library[] = { { "create_filesystem",
 		init_cryptoPAN },
 		{ "cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 }, {
 				"cryptoPAN_anonymize_ipv6", cryptoPAN_anonymize_ipv6 }, {
-				"ntop", ntop }, { "ip4_in_subnet", ip4_in_subnet }, { NULL,
+				"ntop", ntop }, { "ip_in_subnet", ip_in_subnet }, { NULL,
 		NULL } };
 
 //Function to register library

@@ -7,6 +7,32 @@
 
 #include "libAnonLuaHelpers.h"
 
+//Switch a 128-bit address to host order
+void ntoh_128(uint32_t *address) {
+	int i;
+	uint8_t byte_buffer;
+	uint8_t *addr;
+	uint16_t test = 0x0102;
+	uint8_t *testptr;
+
+	testptr = (uint8_t *) &test;
+
+	if (testptr[0] == 0x01) //Endianness test. See which byte was written first
+		return;
+
+	addr = (uint8_t *) address;
+
+	for (i = 0; i < 8; i++) {
+		byte_buffer = addr[i];
+		addr[i] = addr[15 - i];
+		addr[15 - i] = byte_buffer;
+	}
+}
+//These functions are the same. Even arpa/inet does it this way which can be seen in arpa/inet.c source
+void hton_128(uint32_t *address) {
+	ntoh_128(address);
+}
+
 /*
  * Returns the offset, in bytes, from the beginning of the IPv6 header to the beginning of the provided next header.
  * The next header can be either an IPv6 extension header or the next protocol payload.
@@ -62,7 +88,7 @@ uint16_t calculate_internet_checksum(const char *data, int length) {
 /*
  *Helper function to transform an IPv4 or IPv6 address into human-readable form
  */
-int humanForm(const char* address, int length, char* result)
+int humanForm(const char* address, size_t length, char* result)
 {
 	struct in_addr ipv4;
 	struct in6_addr ipv6;
@@ -120,7 +146,7 @@ int	ipv4_in_subnet(const char* address, const char* cidr_subnet)
 	}
 
 	//Set the subnet mask
-	subnet_mask=0xFFFFFF<<(32-cidr_subnet_mask_bit_count);
+	subnet_mask=0xFFFFFFFF<<(32-cidr_subnet_mask_bit_count);
 	subnet_mask=htonl(subnet_mask);
 
 	network_address=network_address & subnet_mask; //Make sure the network address really is a network address by anding it with the subnet_mask
@@ -129,6 +155,74 @@ int	ipv4_in_subnet(const char* address, const char* cidr_subnet)
 		return 1;
 
 	return -1;
+}
+
+/*
+ * Helper function to check if an IPv46address is in a subnet
+ * Address is assumed to be an array of bytes in network order, cidr_subnet is a string with a subnet in CIDR notation, i.e. fe80::01/64
+ */
+int	ipv6_in_subnet(const char* address, const char* cidr_subnet)
+{
+	struct in6_addr test_address;
+	struct in6_addr network_address;
+	struct in6_addr subnet_mask;
+	char *network_address_char;
+	uint8_t cidr_subnet_network_length;
+	uint8_t cidr_subnet_mask_bit_count=0;
+	int i;
+
+	//Get the length of the network part of cidr_subnet. If / is found at spot 5, there are 5 characters before /, namely 0-4
+	cidr_subnet_network_length = strchr(cidr_subnet, '/') - cidr_subnet;
+	network_address_char = (char *) malloc(cidr_subnet_network_length+1); //+1 so we can add the \0 character
+
+	memcpy(&test_address, address, 16);
+
+	memcpy(network_address_char, cidr_subnet, cidr_subnet_network_length);
+	network_address_char[cidr_subnet_network_length]='\0';
+
+	inet_pton(AF_INET6, network_address_char, &network_address); //Network address should now contain bytes representing the address in the CIDR notation subnet in network order
+
+	free(network_address_char); //We don't need you anymore. Thank you for your service.
+
+	//Get the number of bits in the subnet mask
+	for(i=cidr_subnet_network_length+1; i<strlen(cidr_subnet); i++)
+	{
+		cidr_subnet_mask_bit_count*=10;
+		cidr_subnet_mask_bit_count+=cidr_subnet[i]-48; //Convert char to number
+	}
+
+	printf("Bit count: %d\n", cidr_subnet_mask_bit_count);
+
+	i=0;
+	while(cidr_subnet_mask_bit_count>8)
+	{
+		subnet_mask.__in6_u.__u6_addr8[i]=0xFF;
+		cidr_subnet_mask_bit_count-=8;
+		i++;
+	}
+	subnet_mask.__in6_u.__u6_addr8[i]=0xFF<<(8-cidr_subnet_mask_bit_count);
+	i++;
+	while(i<16)
+	{
+		subnet_mask.__in6_u.__u6_addr8[i]=0;
+		i++;
+	}
+	for(i=0;i<16;i++)
+			printf("%x:", subnet_mask.__in6_u.__u6_addr8[i]);
+	printf("\n");
+
+	//Make sure the network address really is a network address by anding it with the subnet_mask
+	for(i=0;i<4;i++)
+		network_address.__in6_u.__u6_addr32[i] = network_address.__in6_u.__u6_addr32[i] & subnet_mask.__in6_u.__u6_addr32[i];
+
+
+	//Here the logic is the reverse from the logic in the ipv4 method. If any 32-bit block of the IPv6 doesn't match the network address when the mask is applied
+	//then we know the whole doesn't match and return -1 immediately. Checking if it all does match would require a variable, but 1 failure is enough for it not to match
+	for(i=0;i<4;i++)
+		if((test_address.__in6_u.__u6_addr32[i] & subnet_mask.__in6_u.__u6_addr32[i]) != network_address.__in6_u.__u6_addr32[i])
+			return -1;
+
+	return 1;
 }
 
 /*

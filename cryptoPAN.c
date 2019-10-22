@@ -130,32 +130,6 @@ int cryptoPAN_ipv4(uint32_t orig_addr, uint32_t *anon_addr,
 	return 1;
 }
 
-//Switch a 128-bit address to host order
-void ntoh_128(uint32_t *address) {
-	int i;
-	uint8_t byte_buffer;
-	uint8_t *addr;
-	uint16_t test = 0x0102;
-	uint8_t *testptr;
-
-	testptr = (uint8_t *) &test;
-
-	if (testptr[0] == 0x01) //Endianness test. See which byte was written first
-		return;
-
-	addr = (uint8_t *) address;
-
-	for (i = 0; i < 8; i++) {
-		byte_buffer = addr[i];
-		addr[i] = addr[15 - i];
-		addr[15 - i] = byte_buffer;
-	}
-}
-//These functions are the same. Even arpa/inet does it this way which can be seen in arpa/inet.c source
-void hton_128(uint32_t *address) {
-	ntoh_128(address);
-}
-
 //This is a modification of the ipv4 version of cryptoPAN for IPv6.
 
 int cryptoPAN_ipv6(uint32_t *orig_addr, uint32_t *anon_addr,

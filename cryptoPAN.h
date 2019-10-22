@@ -22,9 +22,6 @@ int cryptoPAN_ipv4(uint32_t orig_addr, uint32_t *anon_addr,
 		const unsigned char *m_pad, const unsigned char *key,
 		const unsigned char *iv);
 
-void ntoh_128(uint32_t *address);
-void hton_128(uint32_t *address);
-
 int cryptoPAN_ipv6(uint32_t *orig_addr, uint32_t *anon_addr,
 		const unsigned char *m_pad, const unsigned char *key, const unsigned char *iv);
 
