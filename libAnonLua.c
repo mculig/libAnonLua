@@ -69,23 +69,26 @@ static int add_interface(lua_State *L) {
 
 //Write a packet to our filesystem
 //Status 1=success, -1=failure
-//Usage in Lua: write_packet(path, packet_bytes, packet_size, IDB ID)
+//Usage in Lua: write_packet(path, packet_bytes, IDB ID)
 static int write_packet(lua_State *L) {
 	int status = -1;
 	const char *packet_bytes;
-	uint32_t packet_size;
+	size_t packet_size;
 	const char *path;
 	int interface_id;
 
 	//Get the file path
 	path = luaL_checkstring(L, 1);
-	//Check if the contents are light userdata
-	packet_bytes = luaL_checkstring(L, 2);
-	//packet = luaL_checkstring(L, 2);
-	//Get the length
-	packet_size = luaL_checknumber(L, 3);
+	//Check if the contents are a string and get their length
+	if (lua_type(L, 2) == LUA_TSTRING) {
+		packet_bytes = lua_tolstring(L, 2, &packet_size);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 2 to write_packet. String expected!");
+	}
+
 	//Get the interface ID
-	interface_id = luaL_checknumber(L, 4);
+	interface_id = luaL_checknumber(L, 3);
 
 	status = add_EPB(path, packet_bytes, packet_size, interface_id);
 
@@ -94,7 +97,7 @@ static int write_packet(lua_State *L) {
 }
 
 //Black marker takes a string if RAW bytes, its length, and the number of bits to set to 0 from the left or right
-//Usage in  Lua: black_marker(ip_address, bits to mask)
+//Usage in  Lua: black_marker(bytes, mask_length, direction)
 static int black_marker(lua_State *L) {
 
 	int bytes_to_mask = 0;
@@ -102,7 +105,7 @@ static int black_marker(lua_State *L) {
 	uint8_t mask = 0xFF;
 	const char *bytes;
 	char *masked_bytes;
-	int bytes_length;
+	size_t bytes_length;
 	int mask_length;
 	int direction = 0;
 	int start_byte = 0;
@@ -110,11 +113,19 @@ static int black_marker(lua_State *L) {
 	int end_byte = 0;
 	int i;
 
-	//Get the values we need from Lua
-	bytes = luaL_checkstring(L, 1);
-	bytes_length = luaL_checknumber(L, 2);
-	mask_length = luaL_checknumber(L, 3);
-	direction = luaL_checknumber(L, 4);
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		bytes = lua_tolstring(L, 1, &bytes_length);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 1 to black_marker. String expected!");
+	}
+
+	mask_length = luaL_checknumber(L, 2);
+	direction = luaL_checknumber(L, 3);
+
+	if (mask_length > (bytes_length * 8))
+		return luaL_error(L,
+				"Error in function black_marker: mask length longer than provided byte array.");
 
 	//Create a space in memory for the modified value
 	masked_bytes = (char*) malloc(bytes_length);
@@ -158,32 +169,34 @@ static int black_marker(lua_State *L) {
 }
 
 /*Calculates a correct crc32 frame check sequence from an Ethernet frame and returns the checksum and the correct frame
- *A 4-byte frame check sequence is assumed to be present at the end of the frame
- *If your frame lacks the FCS you need to add 4 to frame_length
- *Usage in Lua: calculate_eth_fcs(frame, frame_length)
+ *Usage in Lua: calculate_eth_fcs(frame)
  */
 static int calculate_eth_fcs(lua_State *L) {
 	const char *frame;
 	char* new_frame;
-	int frame_length;
+	size_t frame_length;
 
 	uint32_t FCS;
 	char FCS_STR[4];
 
-	frame = luaL_checkstring(L, 1);
-	frame_length = luaL_checknumber(L, 2);
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		frame = lua_tolstring(L, 1, &frame_length);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 1 to calculate_eth_fcs. String expected!");
+	}
 
-	new_frame = (char *) malloc(frame_length);
+	new_frame = (char *) malloc(frame_length + 4);
 
 	memcpy(new_frame, frame, frame_length); //Copy our frame over
 
-	FCS = crc32(0, (unsigned char *) new_frame, frame_length - 4);
+	FCS = crc32(0, (unsigned char *) new_frame, frame_length);
 
 	memcpy(FCS_STR, &FCS, 4); //Copy the FCS into a string for output
-	memcpy(new_frame + frame_length - 4, &FCS, 4); //Copy the FCS into our frame
+	memcpy(new_frame + frame_length, &FCS, 4); //Copy the FCS into our frame
 
 	lua_pushlstring(L, FCS_STR, 4);
-	lua_pushlstring(L, new_frame, frame_length);
+	lua_pushlstring(L, new_frame, frame_length + 4);
 
 	free(new_frame); //Free memory
 
@@ -479,18 +492,21 @@ static int calculate_tcp_udp_checksum(lua_State *L) {
 }
 
 /* Calculate the checksum of an ICMP packet
- * Usage in Lua: calculate_icmp_checksum(icmp bytes, icmp length)
+ * Usage in Lua: calculate_icmp_checksum(icmp bytes)
  */
 static int calculate_icmp_checksum(lua_State *L) {
 	const char *icmp_orig;
 	char *icmp_recalculated;
-	int length;
+	size_t length;
 	uint16_t result;
 	char checksum[2];
 
-	//Get the original icmp and its length
-	icmp_orig = luaL_checkstring(L, 1);
-	length = luaL_checknumber(L, 2);
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		icmp_orig = lua_tolstring(L, 1, &length);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 1 to calculate_icmp_checksum. String expected!");
+	}
 
 	//Allocate space, copy ICMP packet, set checksum to 0
 	icmp_recalculated = (char *) malloc(length);
@@ -573,20 +589,22 @@ static void crypto_cleanup() {
 	return;
 }
 //Calculate the HMAC of a field and return field-length bytes
-//Usage in Lua: HMAC(bytes, bytes_length, salt, iterations)
+//Usage in Lua: HMAC(bytes, salt, iterations)
 static int HMAC(lua_State *L) {
-	int status = -1;
 	const char *bytes;
 	const char *salt;
-	int length;
+	size_t length;
 	int iterations;
 	char *result;
 
-	//Get the arguments from Lua
-	bytes = luaL_checkstring(L, 1);
-	length = luaL_checknumber(L, 2);
-	salt = luaL_checkstring(L, 3);
-	iterations = luaL_checknumber(L, 4);
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		bytes = lua_tolstring(L, 1, &length);
+	} else {
+		return luaL_error(L, "Invalid argument 1 to HMAC. String expected!");
+	}
+
+	salt = luaL_checkstring(L, 2);
+	iterations = luaL_checknumber(L, 3);
 
 	//Create the output array
 	result = (char *) malloc(length);
@@ -597,28 +615,22 @@ static int HMAC(lua_State *L) {
 	OpenSSL_add_all_algorithms();
 	if (CONF_modules_load(NULL, NULL, 0) <= 0) {
 		crypto_cleanup();
-		lua_pushinteger(L, status);
-		lua_pushlstring(L, '\0', 1);
 		free(result);
-		return 2;
+		return luaL_error(L, "Error during openssl config in function HMAC!");
 	}
 	//PKCS5_PBKDF2_HMAC really wants unsigned char pointers instead of just char pointers. Honestly there is no difference here for us because we're just using them as bytes
 	//Just casting these to unsigned char * to satisfy the compiler should have 0 consequences on the result
 	if (PKCS5_PBKDF2_HMAC(bytes, length, (unsigned char *) salt, strlen(salt),
 			iterations, EVP_sha256(), length, (unsigned char *) result) <= 0) {
 		crypto_cleanup();
-		lua_pushinteger(L, status);
-		lua_pushlstring(L, '\0', 1);
 		free(result);
-		return 2;
+		return luaL_error(L, "Error during HMAC calculation in function HMAC!");
 	}
 	crypto_cleanup();
-	status = 1;
-	//Push the status and result
-	lua_pushinteger(L, status);
+	//Push the result
 	lua_pushlstring(L, result, length);
 	free(result);
-	return 2;
+	return 1;
 }
 
 //Here be our cryptoPAN implementation
@@ -741,8 +753,7 @@ static int ntop(lua_State *L) {
 	if (lua_type(L, 1) == LUA_TSTRING) {
 		address = lua_tolstring(L, 1, &length);
 	} else {
-		luaL_error(L, "Error: Wrong argument to ntop. String expected!");
-		return 0;
+		return luaL_error(L, "Error: Wrong argument 1 to ntop. String expected!");
 	}
 
 	result = malloc(INET6_ADDRSTRLEN); //This way it's certainly long enough
@@ -751,9 +762,8 @@ static int ntop(lua_State *L) {
 
 	lua_pushnumber(L, status);
 	if (status == -1) {
-		lua_pushlstring(L, '\0', 1);
 		free(result);
-		return 1;
+		return luaL_error(L, "Error in function ntop: Failed to transform input to human readable form.");
 	} else {
 		lua_pushlstring(L, result, strlen(result));
 		free(result);
@@ -828,5 +838,13 @@ static const struct luaL_Reg library[] = { { "create_filesystem",
 int luaopen_libAnonLua(lua_State *L) {
 	luaL_newlib(L, library);
 	setHeaderLinkTypeValues(L); //Load the link types from the CSV.
+
+	//Push the two directions for the black marker function as globals
+	lua_pushnumber(L, 0);
+	lua_setfield(L, -2, "black_marker_LSB");
+
+	lua_pushnumber(L, 1);
+	lua_setfield(L, -2, "black_marker_MSB");
+
 	return 1;
 }

@@ -23,7 +23,7 @@ Example: add_interface("file.pcapng", libAnonLua.LINKTYPE_ETHERNET)
 
 ---
 
-**write_packet(string path, string_raw packet_bytes, integer packet_size, integer IDB ID)**
+**write_packet(string path, string_raw packet_bytes, integer IDB ID)**
 
 Adds an Enhanced Packet Block to the pcapng file located at path with the interface ID set to IDB ID with a packet payload containing packet_bytes
 
@@ -31,17 +31,18 @@ Adds an Enhanced Packet Block to the pcapng file located at path with the interf
 
 ---
 
-**black_marker(string_raw bytes, int bytes_length, int mask_length, int direction)**
+**black_marker(string_raw bytes, int mask_length, int direction)**
 
-Sets the mask_length least significant (direction=0) or most significant(direction=1) bits to 0
+Sets the mask_length least significant (direction=0 or libAnonLua.black_marker_LSB) or most significant(direction=1 or libAnonLua.black_marker_MSB) bits to 0
 
 **Returns:** Masked field as a string of RAW bytes
 
 ---
 
-**calculate_eth_fcs(string_raw frame, int frame_length)**
+**calculate_eth_fcs(string_raw frame)**
 
 Calculates the correct frame check sequence (FCS) for the provided ethernet frame using zlib's crc32() function. Returns the calculated checksum and the frame with the checksum appended at the end.
+This function assumes the provided frame does NOT already have a FCS. If your capture card provides the FCS then you should remove the FCS before passing the frame to this function
 
 **Returns:** Checksum (4-byte raw string), provided frame with correct checksum appended (raw string) 
 
@@ -63,7 +64,7 @@ Calculates the correct TCP or UDP checksum based on the provided (whole) IPv4 or
 
 ---
 
-**calculate_icmp_checksum(string_raw ICMP_packet, int ICMP_length)**
+**calculate_icmp_checksum(string_raw ICMP_packet)**
 
 Calculates the correct ICMP checksum based on the provided ICMP packet.
 
@@ -81,11 +82,11 @@ packet is necessary to calculate the correct checksum.
 ---
 
 
-**HMAC(string_raw bytes, int bytes_length, string salt, int iterations)**
+**HMAC(string_raw bytes, string salt, int iterations)**
 
 Calculates a SHA256 PBKDF2 HMAC with iterations iterations of the provided bytes that is bytes_length long and salted with salt. 
 
-**Returns:** Status (-1 FAIL, 1 SUCCESS) and a string of bytes that is the output of the PBKDF2 HMAC function in case of success, or an empty string (‘\0’) on failure.
+**Returns:** A string of bytes that is the output of the PBKDF2 HMAC function
 
 ---
 
