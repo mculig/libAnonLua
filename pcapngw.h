@@ -11,6 +11,8 @@
 #include "stdio.h"
 #include "stdint.h"
 #include "time.h"
+#include "stdint.h"
+#include "string.h"
 
 //Block types
 #define SHB_TYPE 0x0A0D0D0A
@@ -74,6 +76,6 @@ int create_pcapng_filesystem(const char* path);
 
 int add_IDB(const char* path, int interface_type);
 
-int add_EPB(const char *path, const char *packet_bytes, int packet_size, int IDB_ID);
+int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size, int IDB_ID, uint8_t use_own_timestamp, uint64_t timestamp);
 
 #endif /* PCAPNGW_H_ */

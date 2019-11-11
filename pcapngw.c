@@ -25,11 +25,16 @@ int create_pcapng_filesystem(const char* path) {
 }
 
 int add_IDB(const char* path, int interface_type) {
-	IDB idb = { IDB_TYPE, IDB_MIN_LENGTH, interface_type, 0, 0 };
+	IDB idb = { IDB_TYPE, IDB_MIN_LENGTH+12, interface_type, 0, 0 }; //Add 12 bytes to IDB_MIN_LENGTH because we're including a if_tsresol option to set the time resolution to nanoseconds (default is microseconds), opt_endofopt to mark the end of options, and 3 bytes of padding after if_tsresol to achieve a 32-bit boundary
 	FILE *file;
 	uint32_t shb_check;
 	uint32_t block_length;
 	uint64_t section_length;
+	//Time resolution option
+	option if_tsresol={0x09, 0x01};
+	uint8_t if_tsresol_resol=0x09;
+	option opt_endofopt={0x00,0x00};
+	uint8_t pad=0x00;
 
 	//Try to open the file
 	file = fopen(path, "r+");
@@ -54,7 +59,12 @@ int add_IDB(const char* path, int interface_type) {
 
 	//Write the IDB
 	fwrite(&idb, sizeof(idb), 1, file);
-	//Blocks end with variable length options followed by another block_length. For now, no options, so we end with length
+	//Write the if_tsresol option
+	fwrite(&if_tsresol, sizeof(option), 1, file);
+	fwrite(&if_tsresol_resol, sizeof(uint8_t), 1, file);
+	fwrite(&pad, sizeof(uint8_t), 3, file); //Options need to be aligned to 32 bits, so after the if_tsresol option we need 3 more bytes of padding
+	fwrite(&opt_endofopt, sizeof(option), 1, file); //Options end with an opt_endofopt option
+	//Blocks end with variable length options followed by another block_length. Write the block length
 	fwrite(&(idb.block_length), sizeof(idb.block_length), 1, file);
 
 	//Increment our section length
@@ -71,7 +81,8 @@ int add_IDB(const char* path, int interface_type) {
 
 }
 
-int add_EPB(const char *path,const char *packet_bytes, int packet_size, int IDB_ID) {
+int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size,
+		int IDB_ID, uint8_t use_own_timestamp,  uint64_t timestamp) {
 
 	FILE* file;
 	uint32_t shb_check;
@@ -80,7 +91,7 @@ int add_EPB(const char *path,const char *packet_bytes, int packet_size, int IDB_
 	int padding_length = 0;
 	uint8_t pad = 0;
 	struct timespec system_time;
-	uint64_t time_micros;
+	uint64_t time_nanos;
 	EPB epb;
 
 	//Try to open the file
@@ -115,12 +126,22 @@ int add_EPB(const char *path,const char *packet_bytes, int packet_size, int IDB_
 	epb.block_length = EPB_MIN_LENGTH + packet_size + padding_length;
 	//We create only 1 interface when setting up the file so interface_id stays 0 and points to that interface
 	epb.interface_id = IDB_ID;
-	//Get the current time. timespec_get is C11 and will get time in seconds and nanoseconds, rounded to the system clock resolution. Best option. Getting good time in C isn't easy
-	timespec_get(&system_time, TIME_UTC);
-	//Now we need time in microseconds. For that we multiply time in seconds x 10^6 and add nanoseconds divided by 10^3
-	time_micros = 1000000L * system_time.tv_sec + system_time.tv_nsec / 1000; //I hope this works
-	epb.timestamp_low = time_micros & 0x00000000FFFFFFFF;
-	epb.timestamp_high = time_micros >> 32;
+
+	if (use_own_timestamp==1) {
+		//Get the current time. timespec_get is C11 and will get time in seconds and nanoseconds, rounded to the system clock resolution. Best option. Getting good time in C isn't easy
+		timespec_get(&system_time, TIME_UTC);
+		//For the accurate time in nanoseconds we multiply the second portion of the timestamp by 10^9, then add the nanosecond portion
+		time_nanos = 1000000000 * system_time.tv_sec
+				+ system_time.tv_nsec;
+		epb.timestamp_low = time_nanos & 0x00000000FFFFFFFF;
+		epb.timestamp_high = time_nanos >> 32;
+	}
+	else
+	{
+		//Set the time from the provided timestamp
+		memcpy(&(epb.timestamp_low), &timestamp, 4);
+		memcpy(&(epb.timestamp_high), ((uint32_t *) &timestamp)+1, 4);
+	}
 
 	epb.captured_packet_length = packet_size;
 	epb.original_packet_length = packet_size;

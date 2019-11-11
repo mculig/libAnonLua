@@ -76,6 +76,8 @@ static int write_packet(lua_State *L) {
 	size_t packet_size;
 	const char *path;
 	int interface_id;
+	uint64_t timestamp = 0;
+	uint8_t use_own_timestamp = 0;
 
 	//Get the file path
 	path = luaL_checkstring(L, 1);
@@ -90,7 +92,15 @@ static int write_packet(lua_State *L) {
 	//Get the interface ID
 	interface_id = luaL_checknumber(L, 3);
 
-	status = add_EPB(path, packet_bytes, packet_size, interface_id);
+	//Check if a timestamp was provided
+	if (lua_type(L, 4) == LUA_TNUMBER) {
+		timestamp = lua_tonumber(L, 4) * 1000000000;
+	} else {
+		use_own_timestamp = 1;
+	}
+
+	status = add_EPB(path, packet_bytes, packet_size, interface_id,
+			use_own_timestamp, timestamp);
 
 	lua_pushinteger(L, status);
 	return 1;
@@ -753,7 +763,8 @@ static int ntop(lua_State *L) {
 	if (lua_type(L, 1) == LUA_TSTRING) {
 		address = lua_tolstring(L, 1, &length);
 	} else {
-		return luaL_error(L, "Error: Wrong argument 1 to ntop. String expected!");
+		return luaL_error(L,
+				"Error: Wrong argument 1 to ntop. String expected!");
 	}
 
 	result = malloc(INET6_ADDRSTRLEN); //This way it's certainly long enough
@@ -763,7 +774,8 @@ static int ntop(lua_State *L) {
 	lua_pushnumber(L, status);
 	if (status == -1) {
 		free(result);
-		return luaL_error(L, "Error in function ntop: Failed to transform input to human readable form.");
+		return luaL_error(L,
+				"Error in function ntop: Failed to transform input to human readable form.");
 	} else {
 		lua_pushlstring(L, result, strlen(result));
 		free(result);
