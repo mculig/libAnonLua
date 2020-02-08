@@ -29,6 +29,10 @@
 #include "cryptoPAN.h"
 #include "libAnonLuaHelpers.h"
 
+//Define names for storage of values in Lua registry
+#define  CRYPTOSTATE "libAnonLua_crypto_state"
+#define  INTERFACE_COUNT "libAnonLua_interface_count"
+
 //Create a new pcapng file with a Section Header Block and a section length of 0
 //Status 1=success, -1=failure
 //Usage in Lua: create_filesystem(path)
@@ -42,6 +46,8 @@ static int create_filesystem(lua_State *L) {
 	//Create the filesystem
 	status = create_pcapng_filesystem(path);
 
+
+
 	//Push our result to the stack so failure or success can be verified in Lua
 	lua_pushinteger(L, status);
 	return 1;
@@ -54,6 +60,7 @@ static int add_interface(lua_State *L) {
 	int status = -1;
 	const char *path;
 	int link_type;
+	int IDB_ID = 0;
 
 	//Get the file path
 	path = luaL_checkstring(L, 1);
@@ -62,7 +69,32 @@ static int add_interface(lua_State *L) {
 
 	status = add_IDB(path, link_type);
 
-	lua_pushinteger(L, status);
+	if(status==1){
+		//We successfully wrote an IDB
+		//Get the interface count from the Lua registry
+		lua_pushstring(L, INTERFACE_COUNT);
+		lua_gettable(L, LUA_REGISTRYINDEX);
+		if(lua_isnil(L, -1)){
+			//If the interface count is nil, we don't have one yet. Set IDB_ID
+			lua_pushstring(L, INTERFACE_COUNT);
+			lua_pushinteger(L, IDB_ID);
+			lua_settable(L, LUA_REGISTRYINDEX);
+		}
+		else{
+			//If the interface count isn't nil, get it, increment it, set it
+			IDB_ID = luaL_checknumber(L, -1);
+			++IDB_ID;
+			lua_pushstring(L, INTERFACE_COUNT);
+			lua_pushinteger(L, IDB_ID);
+			lua_settable(L, LUA_REGISTRYINDEX);
+		}
+		//Push the IDB_ID. Our return is the interface number
+		lua_pushinteger(L, IDB_ID);
+	}
+	else{
+		//We failed at writing the IDB_ID. Our return is -1, meaning failure
+		lua_pushinteger(L, status);
+	}
 
 	return 1;
 }
@@ -652,22 +684,26 @@ static int HMAC(lua_State *L) {
 static int init_cryptoPAN(lua_State *L) {
 	const char *filename;
 	int status = -1;
-	char state[64]; //32-byte AES256 KEY, 16-byte IV, 16-byte PAD sufficient for padding both IPv6 and IPv4
+	char state[STATE_SIZE];
 
 	filename = luaL_checkstring(L, 1);
 
 	status = cryptoPAN_init(filename, state);
-	lua_pushnumber(L, status);
-	if (status == -1)
-		lua_pushlstring(L, '\0', 1);
-	else
+
+	if(status==1){
+		//Set the crypto state in the Lua registry
+		lua_pushstring(L, CRYPTOSTATE);
 		lua_pushlstring(L, state, STATE_SIZE);
-	return 2;
+		lua_settable(L, LUA_REGISTRYINDEX);
+	}
+
+	lua_pushnumber(L, status);
+	return 1;
 }
 
 /*
  *  Returns an IPv4 address anonymized using the cryptoPAN algorithm
- *  Usage in Lua: cryptoPAN_anonymize_ipv4(state, address)
+ *  Usage in Lua: cryptoPAN_anonymize_ipv4(address)
  */
 static int cryptoPAN_anonymize_ipv4(lua_State *L) {
 	int status = -1;
@@ -682,8 +718,17 @@ static int cryptoPAN_anonymize_ipv4(lua_State *L) {
 	const unsigned char *iv; //[16] AES256 IV
 	const unsigned char *pad; //[16]Padding bytes
 
-	state = (unsigned char *) luaL_checkstring(L, 1);
-	address = luaL_checkstring(L, 2);
+	address = luaL_checkstring(L, 1);
+
+	//Get the state from the Lua registry
+	lua_pushstring(L, CRYPTOSTATE);
+	lua_gettable(L, LUA_REGISTRYINDEX);
+	if(lua_isnil(L, -1)){
+		//The returned value is nil, meaning init_cryptoPAN failed or wasn't called
+		//Fail here
+		return luaL_error(L, "Missing state for cryptoPAN_anonymize_ipv4. Did you forget to use init_cryptoPAN before using this function?");
+	}
+	state = (unsigned char *) luaL_checkstring(L, -1);
 
 	//Set up pointers to key, iv and pad, which are parts of state
 	key = state;
@@ -707,7 +752,7 @@ static int cryptoPAN_anonymize_ipv4(lua_State *L) {
 
 /*
  * Returns an IPv6 address anonymized using the cryptoPAN algorithm
- * Usage in Lua: cryptoPAN_anonymize_ipv6(state, address)
+ * Usage in Lua: cryptoPAN_anonymize_ipv6(address)
  */
 
 static int cryptoPAN_anonymize_ipv6(lua_State *L) {
@@ -723,8 +768,17 @@ static int cryptoPAN_anonymize_ipv6(lua_State *L) {
 	const unsigned char *iv; //[16] AES256 IV
 	const unsigned char *pad; //[16]Padding bytes
 
-	state = (unsigned char *) luaL_checkstring(L, 1);
-	address = luaL_checkstring(L, 2);
+	address = luaL_checkstring(L, 1);
+
+	//Get the state from the Lua registry
+		lua_pushstring(L, CRYPTOSTATE);
+		lua_gettable(L, LUA_REGISTRYINDEX);
+		if(lua_isnil(L, -1)){
+			//The returned value is nil, meaning init_cryptoPAN failed or wasn't called
+			//Fail here
+			return luaL_error(L, "Missing state for cryptoPAN_anonymize_ipv6. Did you forget to use init_cryptoPAN before using this function?");
+		}
+		state = (unsigned char *) luaL_checkstring(L, -1);
 
 	//Set up pointers to key, iv and pad, which are parts of state
 	key = state;

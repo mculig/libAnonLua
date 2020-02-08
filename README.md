@@ -19,7 +19,7 @@ Adds an Interface Description Block to the pcapng file located at path with the 
 
 Example: add_interface("file.pcapng", libAnonLua.LINKTYPE_ETHERNET)
 
-**Returns:** 1 on success, -1 on failure
+**Returns:** Interface Description Block ID on success, -1 on failure
 
 ---
 
@@ -96,13 +96,13 @@ Calculates a SHA256 PBKDF2 HMAC with iterations iterations of the provided bytes
 
 **init_cryptoPAN(string filename)**
 
-Initializes the cryptoPAN algorithm. If the provided file exists 64 bytes are read from the file and returned as a string. If the file doesn't exist, then 64 pseudorandom bytes are read from /dev/urandom and written into a new file at filename, then returned as a string. These 64 bytes are used as the KEY, IV and PAD for the AES256 algorithm used by **cryptoPAN_anonymize_ipv4** and **cryptoPAN_anonymize_ipv6**
+Initializes the cryptoPAN algorithm. If the provided file exists 64 bytes are read from the file. If the file doesn't exist, then 64 pseudorandom bytes are read from /dev/urandom and written into a new file at filename. These 64 bytes are used as the KEY, IV and PAD for the AES256 algorithm used by **cryptoPAN_anonymize_ipv4** and **cryptoPAN_anonymize_ipv6**
 
-**Returns:** Status(-1 FAIL, 1 SUCCESS) and a string of 64 bytes from the file at filename or /dev/urandom, or an empty string ('\0') on failure.
+**Returns:** Status(-1 FAIL, 1 SUCCESS)
 
 ---
 
-**cryptoPAN_anonymize_ipv4(string_raw state, string_raw IPv4_address)**
+**cryptoPAN_anonymize_ipv4(string_raw IPv4_address)**
 
 Anonymizes the provided IPv4 address using the cryptoPAN algorithm.
 
@@ -110,7 +110,7 @@ Anonymizes the provided IPv4 address using the cryptoPAN algorithm.
 
 ---
 
-**cryptoPAN_anonymize_ipv6(string_raw state, string_raw IPv6_address)**
+**cryptoPAN_anonymize_ipv6(string_raw IPv6_address)**
 
 Anonymizes the provided IPv6 address using the cryptoPAN algorithm.
 
