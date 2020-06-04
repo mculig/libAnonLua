@@ -1,9 +1,19 @@
 # libAnonLua
 A Lua library for network trace anonymization with support for creating pcapng files.
 
-**Note:** All strings of bytes (string_raw) accepted by functions are assumed to be strings holding raw bytes such as returned by Wireshark's tvb:range(a,b):bytes():raw() and **NOT** textual representations of these bytes (such as hex) 
+## Required libraries
+
+libAnonLua currently requires the following libraries in order to compile:
+
+* liblua5.2-dev
+* zlib1g-dev
+* libssl-dev
+
+These libraries may be named differently depending on your distribution
 
 ## Currently supported methods:
+
+**Note:** All strings of bytes (string_raw) accepted by functions are assumed to be strings holding raw bytes such as returned by Wireshark's tvb:range(a,b):bytes():raw() and **NOT** textual representations of these bytes (such as hex) 
 
 **create_filesystem(string path)**
 
