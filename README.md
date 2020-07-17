@@ -53,6 +53,14 @@ Sets the mask_length least significant (direction=0 or libAnonLua.black_marker_L
 
 ---
 
+**apply_mask(string_raw bytes, string_raw mask)**
+
+Applies the provided mask to the provided bytes.
+
+**Returns:** Masked field as a string of RAW bytes
+
+---
+
 **calculate_eth_fcs(string_raw frame)**
 
 Calculates the correct frame check sequence (FCS) for the provided ethernet frame using zlib's crc32() function. Returns the calculated checksum and the frame with the checksum appended at the end.

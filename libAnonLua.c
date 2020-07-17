@@ -210,6 +210,48 @@ static int black_marker(lua_State *L) {
 	return 1;
 }
 
+static int apply_mask(lua_State *L){
+
+	size_t bytes_length;
+	size_t mask_length;
+	const char* bytes;
+	const char* mask_bytes;
+	char* result_bytes;
+	int i;
+
+	if (lua_type(L, 1) == LUA_TSTRING) {
+			bytes = lua_tolstring(L, 1, &bytes_length);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 1 to apply_mask. String expected!");
+	}
+
+	if (lua_type(L, 2) == LUA_TSTRING) {
+			mask_bytes = lua_tolstring(L, 2, &mask_length);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 2 to apply_mask. String expected!");
+	}
+
+	if (bytes_length != mask_length)
+		return luaL_error(L, "Invalid mask length. Mask must match length of supplied bytes");
+
+	//Create result in memory
+	result_bytes = (char*) malloc(bytes_length);
+
+	//Apply the mask to all the bytes in order
+	for(i=0;i<bytes_length;i++){
+		result_bytes[i] = bytes[i] & mask_bytes[i];
+	}
+
+	lua_pushlstring(L, result_bytes, bytes_length);
+
+	//Free memory
+	free(result_bytes);
+
+	return 1;
+}
+
 /*Calculates a correct crc32 frame check sequence from an Ethernet frame and returns the checksum and the correct frame
  *Usage in Lua: calculate_eth_fcs(frame)
  */
@@ -886,19 +928,23 @@ static int ip_in_subnet(lua_State *L) {
  */
 
 //To register library with lua
-static const struct luaL_Reg library[] = { { "create_filesystem",
-		create_filesystem }, { "add_interface", add_interface }, {
-		"write_packet", write_packet }, { "black_marker", black_marker }, {
-		"calculate_eth_fcs", calculate_eth_fcs }, { "calculate_ipv4_checksum",
-		calculate_ipv4_checksum }, { "calculate_tcp_udp_checksum",
-		calculate_tcp_udp_checksum }, { "calculate_icmp_checksum",
-		calculate_icmp_checksum }, { "calculate_icmpv6_checksum",
-		calculate_icmpv6_checksum }, { "HMAC", HMAC }, { "init_cryptoPAN",
-		init_cryptoPAN },
-		{ "cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 }, {
-				"cryptoPAN_anonymize_ipv6", cryptoPAN_anonymize_ipv6 }, {
-				"ntop", ntop }, { "ip_in_subnet", ip_in_subnet }, { NULL,
-		NULL } };
+static const struct luaL_Reg library[] = {
+		{ "create_filesystem",create_filesystem },
+		{ "add_interface", add_interface },
+		{ "write_packet", write_packet },
+		{ "black_marker", black_marker },
+		{"apply_mask", apply_mask},
+		{"calculate_eth_fcs", calculate_eth_fcs },
+		{ "calculate_ipv4_checksum",calculate_ipv4_checksum },
+		{ "calculate_tcp_udp_checksum",calculate_tcp_udp_checksum },
+		{ "calculate_icmp_checksum",calculate_icmp_checksum },
+		{ "calculate_icmpv6_checksum",calculate_icmpv6_checksum },
+		{ "HMAC", HMAC }, { "init_cryptoPAN", init_cryptoPAN },
+		{ "cryptoPAN_anonymize_ipv4", cryptoPAN_anonymize_ipv4 },
+		{"cryptoPAN_anonymize_ipv6", cryptoPAN_anonymize_ipv6 },
+		{"ntop", ntop },
+		{ "ip_in_subnet", ip_in_subnet },
+		{NULL,NULL } };
 
 //Function to register library
 int luaopen_libAnonLua(lua_State *L) {
