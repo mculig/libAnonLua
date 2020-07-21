@@ -628,7 +628,7 @@ static int calculate_icmpv6_checksum(lua_State *L) {
 		packet_orig = lua_tolstring(L, 1, &length);
 	} else {
 		return luaL_error(L,
-				"Invalid argument 1 to calculate_icmp_checksum. String expected!");
+				"Invalid argument 1 to calculate_icmpv6_checksum. String expected!");
 	}
 
 	//Allocate space, copy packet
@@ -637,6 +637,7 @@ static int calculate_icmpv6_checksum(lua_State *L) {
 
 	//Get the offset of ICMPv6 from the beginning of the IPv6 packet
 	offset = ipv6_next_header_offset(packet_orig, 58); //Get the offset of ICMPv6 (protocol number 58)
+	printf("Offset: %d \n", offset);
 	icmpv6_length = length - offset;
 	icmpv6_length_big_endian = htonl(icmpv6_length);
 

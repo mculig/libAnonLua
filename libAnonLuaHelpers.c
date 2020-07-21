@@ -52,9 +52,9 @@ uint32_t ipv6_next_header_offset(const char* packet, int protocol_number) {
 	while (next_header != protocol_number) {
 		memcpy(&next_header, packet + header_offset, 1);
 		memcpy(&header_length, packet + header_offset + 1, 1);
-		if ((header_offset - 40 + 1 + header_length * 8) >= payload_length * 8)
+		if ((header_offset - 40 + 8 + header_length * 8) >= payload_length * 8)
 			return -1; //If our offset minus header reaches the end of the payload, then we have no further headers and didn't find what we want
-		header_offset += 1 + header_length * 8;
+		header_offset += 8 + header_length * 8;
 	}
 	return header_offset;
 }
@@ -191,8 +191,6 @@ int	ipv6_in_subnet(const char* address, const char* cidr_subnet)
 		cidr_subnet_mask_bit_count+=cidr_subnet[i]-48; //Convert char to number
 	}
 
-	printf("Bit count: %d\n", cidr_subnet_mask_bit_count);
-
 	i=0;
 	while(cidr_subnet_mask_bit_count>8)
 	{
@@ -207,9 +205,6 @@ int	ipv6_in_subnet(const char* address, const char* cidr_subnet)
 		subnet_mask.__in6_u.__u6_addr8[i]=0;
 		i++;
 	}
-	for(i=0;i<16;i++)
-			printf("%x:", subnet_mask.__in6_u.__u6_addr8[i]);
-	printf("\n");
 
 	//Make sure the network address really is a network address by anding it with the subnet_mask
 	for(i=0;i<4;i++)
