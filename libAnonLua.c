@@ -616,16 +616,20 @@ static int calculate_icmpv6_checksum(lua_State *L) {
 	const char *packet_orig;
 	char *packet_recalc;
 	unsigned char *pseudo_header;
-	int length;
+	size_t length;
 	uint16_t result;
 	char checksum[2];
 	uint32_t offset;
 	uint32_t icmpv6_length;
 	uint32_t icmpv6_length_big_endian;
 
-	//Get the packet and length from Lua
-	packet_orig = luaL_checkstring(L, 1);
-	length = luaL_checknumber(L, 2);
+
+	if (lua_type(L, 1) == LUA_TSTRING) {
+		packet_orig = lua_tolstring(L, 1, &length);
+	} else {
+		return luaL_error(L,
+				"Invalid argument 1 to calculate_icmp_checksum. String expected!");
+	}
 
 	//Allocate space, copy packet
 	packet_recalc = (char *) malloc(length);
