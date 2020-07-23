@@ -61,6 +61,19 @@ Applies the provided mask to the provided bytes.
 
 ---
 
+
+**get_port_range(string_raw portNumber)**
+
+Returns a value indicating the range a TCP or UDP port number came from
+
+0 = Well-known ports
+1024 = Registered ports
+49152 = Ephemeral ports
+
+**Returns:** Port range as string of RAW bytes
+
+---
+
 **calculate_eth_fcs(string_raw frame)**
 
 Calculates the correct frame check sequence (FCS) for the provided ethernet frame using zlib's crc32() function. Returns the calculated checksum and the frame with the checksum appended at the end.

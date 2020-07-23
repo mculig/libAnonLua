@@ -33,6 +33,9 @@
 #define  CRYPTOSTATE "libAnonLua_crypto_state"
 #define  INTERFACE_COUNT "libAnonLua_interface_count"
 
+//Define the library version
+#define LIBANONLUA_VERSION 2
+
 //Create a new pcapng file with a Section Header Block and a section length of 0
 //Status 1=success, -1=failure
 //Usage in Lua: create_filesystem(path)
@@ -210,6 +213,8 @@ static int black_marker(lua_State *L) {
 	return 1;
 }
 
+//Applies a n-byte long mask to a n-byte long array of bytes
+//Usage in Lua: apply_mask(bytes, mask)
 static int apply_mask(lua_State *L){
 
 	size_t bytes_length;
@@ -248,6 +253,77 @@ static int apply_mask(lua_State *L){
 
 	//Free memory
 	free(result_bytes);
+
+	return 1;
+}
+
+//Get the range a TCP or UDP port belongs in as the minimum value from that range
+//(0 = Well Known, 1024 = Registered, 49152 = Ephemeral)
+//Usage in Lua: get_port_range(port)
+static int get_port_range(lua_State *L){
+
+	uint16_t port_range;
+	uint8_t *port_pointer;
+	uint16_t endianness_test = 0x00FF;
+	int little_endian = 1;
+	size_t bytes_length;
+	const char* bytes;
+	char* out_bytes;
+
+	if (lua_type(L, 1) == LUA_TSTRING) {
+				bytes = lua_tolstring(L, 1, &bytes_length);
+		} else {
+			return luaL_error(L,
+					"Invalid argument 1 to get_port_range. String expected!");
+		}
+
+	if(bytes_length > 2)
+		return luaL_error(L, "Invalid length of argument 1 to get_port_range. 2 bytes expected, received %d!", bytes_length);
+
+	//Test endianness of our machine by testing which byte is 1st in the endianness_test
+	port_pointer = (uint8_t  *) &endianness_test;
+
+	if(*port_pointer == 0xFF){
+		//Little endian
+		//On little endian machines we need to swap the order of bytes to interpret them correctly
+		little_endian = 1;
+		port_pointer = (uint8_t *) &port_range;
+		//Copy 2nd byte of bytes to 1st byte of port range and 1st byte of bytes to 2nd byte of port_range
+		memcpy(port_pointer, bytes+1, 1);
+		memcpy(port_pointer+1, bytes, 1);
+	}
+	else{
+		//Big endian
+		//On Big-endian machines we just keep the order as network order is Big-endian
+		little_endian = 0;
+		memcpy(&port_range, bytes, 2);
+	}
+
+
+	if(port_range >= 0 && port_range <= 1023)
+		port_range = 0;
+	else if(port_range >= 1024 && port_range <= 49151)
+		port_range = 1024;
+	else
+		port_range = 49152;
+
+	//Create memory space for the output
+	out_bytes = (char*) malloc(2);
+
+	//Copy port_range to the output string. Pay attention to endianness
+	if(little_endian == 1){
+		port_pointer = (uint8_t *) &port_range;
+		memcpy(out_bytes, port_pointer+1, 1);
+		memcpy(out_bytes+1, port_pointer, 1);
+	}
+	else{
+		memcpy(out_bytes, &port_range, 2);
+	}
+
+	lua_pushlstring(L, out_bytes, 2);
+
+	//Free output
+	free(out_bytes);
 
 	return 1;
 }
@@ -938,6 +1014,7 @@ static const struct luaL_Reg library[] = {
 		{ "add_interface", add_interface },
 		{ "write_packet", write_packet },
 		{ "black_marker", black_marker },
+		{ "get_port_range", get_port_range},
 		{"apply_mask", apply_mask},
 		{"calculate_eth_fcs", calculate_eth_fcs },
 		{ "calculate_ipv4_checksum",calculate_ipv4_checksum },
@@ -962,6 +1039,10 @@ int luaopen_libAnonLua(lua_State *L) {
 
 	lua_pushnumber(L, 1);
 	lua_setfield(L, -2, "black_marker_MSB");
+
+	//Push the library version so that it can be verified when running scripts using it
+	lua_pushnumber(L, LIBANONLUA_VERSION);
+	lua_setfield(L, -2, "version");
 
 	return 1;
 }
