@@ -34,7 +34,7 @@
 #define  INTERFACE_COUNT "libAnonLua_interface_count"
 
 //Define the library version
-#define LIBANONLUA_VERSION 2
+#define LIBANONLUA_VERSION 3
 
 //Create a new pcapng file with a Section Header Block and a section length of 0
 //Status 1=success, -1=failure
@@ -480,9 +480,9 @@ static int calculate_tcp_udp_checksum(lua_State *L) {
 
 		//Due to data being in network byte order we need to move the bytes around to get a proper total length
 		memcpy(&length, packet + ipv4_total_length_offset, 1);
-		length = length >> 8;
+		length = length << 8;
 		memcpy(&length, packet + ipv4_total_length_offset + 1, 1);
-		datagram_length = length - ipv4_header_length; //We can get the TCP header length by now subtracting the ipv4 header length from the total length
+		datagram_length = length - ipv4_header_length; //We can get the datagram length by now subtracting the ipv4 header length from the total length
 		datagram_length_reversed = datagram_length >> 8; //We generate the reversed length here for the purpose of writing it into the pseudo_header
 		datagram_length_reversed += datagram_length << 8;
 
