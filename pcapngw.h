@@ -20,6 +20,9 @@
 #define IDB_TYPE 0x00000001
 #define EPB_TYPE 0x00000006
 
+//Option types
+#define OPT_COMMENT_TYPE 0x0001
+
 //Offset from beginning of SHB to section length segment
 #define SECTION_LENGTH_BEGIN 16
 
@@ -76,6 +79,6 @@ int create_pcapng_filesystem(const char* path);
 
 int add_IDB(const char* path, int interface_type);
 
-int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size, int IDB_ID, uint8_t use_own_timestamp, uint64_t timestamp);
+int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size, int IDB_ID, uint8_t use_own_timestamp, uint64_t timestamp, const char *comment_value, size_t comment_length);
 
 #endif /* PCAPNGW_H_ */

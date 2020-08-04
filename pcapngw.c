@@ -82,7 +82,7 @@ int add_IDB(const char* path, int interface_type) {
 }
 
 int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size,
-		int IDB_ID, uint8_t use_own_timestamp,  uint64_t timestamp) {
+		int IDB_ID, uint8_t use_own_timestamp,  uint64_t timestamp, const char *comment_value, size_t comment_length) {
 
 	FILE* file;
 	uint32_t shb_check;
@@ -93,6 +93,9 @@ int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size,
 	struct timespec system_time;
 	uint64_t time_nanos;
 	EPB epb;
+	option option_comment;
+	int comment_padding_length=0;
+	int comment_total_length = 0;
 
 	//Try to open the file
 	file = fopen(path, "r+");
@@ -121,9 +124,24 @@ int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size,
 		padding_length = 4 - (packet_size % 4);
 	}
 
+	//Set up the comment option if it exists
+	if(comment_value != NULL && comment_length!=0){
+		//Check the length of the comment to see if padding is necessary
+		if (comment_length % 4 != 0){
+			comment_padding_length = 4 - (comment_length % 4);
+		}
+		//Calculate the total length. This is equal to 2 bytes of Option Code, 2 bytes of Option Length, comment_length + padding.
+		comment_total_length = 4 + comment_length + comment_padding_length;
+
+		//Option code
+		option_comment.optcode = OPT_COMMENT_TYPE;
+		//Option length. This does not include the padding
+		option_comment.length = comment_length;
+	}
+
 	//Set up the EPB
 	epb.block_type = EPB_TYPE;
-	epb.block_length = EPB_MIN_LENGTH + packet_size + padding_length;
+	epb.block_length = EPB_MIN_LENGTH + packet_size + padding_length + comment_total_length;
 	//We create only 1 interface when setting up the file so interface_id stays 0 and points to that interface
 	epb.interface_id = IDB_ID;
 
@@ -154,7 +172,16 @@ int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size,
 	//Write the padding portion
 	if (padding_length != 0)
 		fwrite(&pad, sizeof(pad), padding_length, file);
-	//For now we don't have options so we just write the length again
+	//Write the comment option (if present) here. If the comment_total_length is not zero we calculated it, and that only happens if there is a comment option
+	if(comment_total_length != 0){
+		//Write the option code and length
+		fwrite(&(option_comment), sizeof(option), 1, file);
+		//Write the comment itself
+		fwrite(comment_value, comment_length, 1, file);
+		//Write the option padding
+		fwrite(&pad, sizeof(pad), comment_padding_length, file);
+	}
+	//Write the length again
 	fwrite(&(epb.block_length), sizeof(epb.block_length), 1, file);
 	//Seek to the SHB section length and write the new length
 	fseek(file, SECTION_LENGTH_BEGIN, SEEK_SET);
@@ -164,5 +191,4 @@ int add_EPB(const char *path, const char *packet_bytes, uint32_t packet_size,
 	fclose(file);
 
 	return 1;
-
 }

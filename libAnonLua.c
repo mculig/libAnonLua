@@ -34,7 +34,7 @@
 #define  INTERFACE_COUNT "libAnonLua_interface_count"
 
 //Define the library version
-#define LIBANONLUA_VERSION 3
+#define LIBANONLUA_VERSION 4
 
 //Create a new pcapng file with a Section Header Block and a section length of 0
 //Status 1=success, -1=failure
@@ -104,7 +104,7 @@ static int add_interface(lua_State *L) {
 
 //Write a packet to our filesystem
 //Status 1=success, -1=failure
-//Usage in Lua: write_packet(path, packet_bytes, IDB ID)
+//Usage in Lua: write_packet(path, packet_bytes, IDB ID, timestamp_value, comment_value)
 static int write_packet(lua_State *L) {
 	int status = -1;
 	const char *packet_bytes;
@@ -113,6 +113,8 @@ static int write_packet(lua_State *L) {
 	int interface_id;
 	uint64_t timestamp = 0;
 	uint8_t use_own_timestamp = 0;
+	const char *comment = NULL;
+	size_t comment_length = 0;
 
 	//Get the file path
 	path = luaL_checkstring(L, 1);
@@ -134,8 +136,17 @@ static int write_packet(lua_State *L) {
 		use_own_timestamp = 1;
 	}
 
+	//Check if a comment was supplied
+		if (lua_type(L, 5) == LUA_TSTRING){
+			comment = lua_tolstring(L, 5, &comment_length);
+		}
+		else if (lua_type(L, 5) == LUA_TNIL){
+			comment = NULL;
+			comment_length = 0;
+		}
+
 	status = add_EPB(path, packet_bytes, packet_size, interface_id,
-			use_own_timestamp, timestamp);
+			use_own_timestamp, timestamp, comment, comment_length);
 
 	lua_pushinteger(L, status);
 	return 1;
