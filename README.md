@@ -33,13 +33,14 @@ Example: add_interface("file.pcapng", libAnonLua.LINKTYPE_ETHERNET)
 
 ---
 
-**write_packet(string path, string_raw packet_bytes, integer IDB ID, [double timestamp])**
+**write_packet(string path, string_raw packet_bytes, integer IDB ID, [double timestamp], [string comment])**
 
 Adds an Enhanced Packet Block to the pcapng file located at path with the interface ID set to IDB ID with a packet payload containing packet_bytes
 An optional timestamp (in seconds) can be supplied. The timestamp is converted to nanoseconds via multiplication, then written to the file.
 If a timestamp isn't provided, the current system time is used. 
 This is done as a means of compatibility with Wireshark, where the timestamp (in seconds) can be retrieved using pinfo.abs_ts
-An error of approximately 100ns was observed when testing, likely due to rounding. 
+An error of approximately 100ns was observed when testing, likely due to rounding.
+An optional comment can be included, which will be added to the Enhanced Packet Block and will be visible in Wireshark 
 
 **Returns:** 1 on success, -1 on failure
 
