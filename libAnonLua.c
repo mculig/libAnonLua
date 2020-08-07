@@ -619,10 +619,6 @@ static int calculate_tcp_udp_checksum(lua_State *L) {
 			else if (ipv6_next_header == protocol_udp)
 				memset(pseudo_header + 46, 0x00, 2); //Erase the existing UDP checksum
 
-			for (result = 0; result < pseudo_header_length; result++) {
-				printf("%x\n", *(pseudo_header + result));
-			}
-
 			//Create the datagram
 			datagram = (char *) malloc(datagram_length); //Create the datagram
 			memcpy(datagram, packet + ipv6_payload_parsing_offset,
@@ -631,8 +627,6 @@ static int calculate_tcp_udp_checksum(lua_State *L) {
 			//Calculate the checksum
 			result = calculate_internet_checksum(pseudo_header,
 					pseudo_header_length);
-
-			printf("Checksum: %x\n", result);
 
 			//Copy the result into our checksum string
 			memcpy(checksum, &result, 2);
@@ -724,7 +718,6 @@ static int calculate_icmpv6_checksum(lua_State *L) {
 
 	//Get the offset of ICMPv6 from the beginning of the IPv6 packet
 	offset = ipv6_next_header_offset(packet_orig, 58); //Get the offset of ICMPv6 (protocol number 58)
-	printf("Offset: %d \n", offset);
 	icmpv6_length = length - offset;
 	icmpv6_length_big_endian = htonl(icmpv6_length);
 
